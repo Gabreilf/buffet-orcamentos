@@ -1,0 +1,8 @@
+
+{
+  "name": "OrçaBuffet",
+  "description": "An AI-powered SaaS application that transforms event descriptions (via text or audio) into complete and detailed cost estimates for buffet businesses.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
