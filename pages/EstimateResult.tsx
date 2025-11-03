@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { Estimate, EstimateItem, MenuItemDetail, OtherCost } from '../types';
+import { ChevronDown, Trash2, Plus, FileText } from 'lucide-react';
 
 interface EstimateResultProps {
   estimate: Estimate;
@@ -13,6 +14,15 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
   const [estimate, setEstimate] = useState(initialEstimate);
   const [margin, setMargin] = useState(40);
   const [isLaborExpanded, setIsLaborExpanded] = useState(false);
+  // Estado para controlar quais seções de menu estão abertas
+  const [expandedMenus, setExpandedMenus] = useState<Record<number, boolean>>({});
+
+  const toggleMenuExpansion = (index: number) => {
+    setExpandedMenus(prev => ({
+      ...prev,
+      [index]: !prev[index]
+    }));
+  };
 
   const recalculateTotals = useCallback((menuItems: MenuItemDetail[], otherCosts: OtherCost[]) => {
     const newTotals = { ...estimate.totals };
@@ -23,11 +33,17 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
     
     const otherCostsTotal = otherCosts.reduce((acc, cost) => acc + (cost.cost || 0), 0);
 
+    // Recalculate labor total based on laborDetails (if available)
+    const laborTotal = newTotals.laborDetails?.reduce((acc, d) => acc + d.totalCost, 0) || 0;
+    newTotals.labor = laborTotal;
+
     const kitchenStaffCost = newTotals.laborDetails?.filter(d => d.role.toLowerCase().includes('cozinheir') || d.role.toLowerCase().includes('auxiliar')).reduce((acc, d) => acc + d.totalCost, 0) || 0;
     newTotals.productionCost = newTotals.ingredients + kitchenStaffCost;
     
-    newTotals.tax = (newTotals.ingredients + newTotals.labor + otherCostsTotal) * 0.08;
-    newTotals.totalCost = newTotals.ingredients + newTotals.labor + otherCostsTotal + newTotals.tax;
+    // Tax calculation based on ingredients + labor + other costs
+    const baseForTax = newTotals.ingredients + newTotals.labor + otherCostsTotal;
+    newTotals.tax = baseForTax * 0.08;
+    newTotals.totalCost = baseForTax + newTotals.tax;
     
     newTotals.otherCosts = otherCosts;
     return newTotals;
@@ -41,6 +57,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
       if(field === 'name' || field === 'unit') {
         item[field] = value;
       } else {
+        // Ensure numeric fields are parsed correctly
         (item as any)[field] = parseFloat(value) || 0;
       }
 
@@ -61,7 +78,8 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
           unitCost: 0,
           totalCost: 0,
       });
-      setEstimate({...estimate, menuItems: newMenuItems });
+      const newTotals = recalculateTotals(newMenuItems, estimate.totals.otherCosts);
+      setEstimate({...estimate, menuItems: newMenuItems, totals: newTotals });
   };
   
   const handleRemoveItem = (menuItemIndex: number, itemIndex: number) => {
@@ -116,7 +134,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
               <p className="text-slate-500">{estimate.eventType} para {estimate.guests} convidados.</p>
             </div>
             <button className="bg-slate-100 text-slate-700 font-bold py-2 px-4 rounded-lg hover:bg-slate-200 transition flex items-center">
-              <i className="fas fa-file-pdf mr-2 text-red-500"></i>
+              <FileText className="w-4 h-4 mr-2 text-red-500" />
               Exportar PDF
             </button>
           </div>
@@ -133,40 +151,87 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
           )}
 
           <div className="space-y-6">
-            {estimate.menuItems.map((menuItem, menuItemIndex) => (
-              <div key={menuItemIndex}>
-                <h3 className="text-lg font-semibold text-slate-700 mb-2 border-b pb-2">{menuItem.name}</h3>
-                <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-slate-200">
-                      <thead className="bg-slate-50">
-                        <tr>
-                          <th className="px-2 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider w-2/5">Item</th>
-                          <th className="px-2 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Qtde.</th>
-                          <th className="px-2 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Un.</th>
-                          <th className="px-2 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Preço Unit.</th>
-                          <th className="px-2 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Custo Total</th>
-                          <th className="px-2 py-2 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Ação</th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-slate-200">
-                        {menuItem.ingredients.map((item, itemIndex) => (
-                          <tr key={itemIndex} className="hover:bg-slate-50">
-                            <td className="p-2 whitespace-nowrap"><input type="text" value={item.name} onChange={(e) => handleItemChange(menuItemIndex, itemIndex, 'name', e.target.value)} className="w-full bg-transparent p-1 rounded border-slate-200"/></td>
-                            <td className="p-2 whitespace-nowrap"><input type="number" value={item.qty} onChange={(e) => handleItemChange(menuItemIndex, itemIndex, 'qty', e.target.value)} className="w-20 bg-transparent p-1 rounded border-slate-200"/></td>
-                            <td className="p-2 whitespace-nowrap text-sm text-slate-500">{item.unit}</td>
-                            <td className="p-2 whitespace-nowrap"><input type="number" step="0.01" value={item.unitCost} onChange={(e) => handleItemChange(menuItemIndex, itemIndex, 'unitCost', e.target.value)} className="w-24 bg-transparent p-1 rounded border-slate-200"/></td>
-                            <td className="p-2 whitespace-nowrap text-sm font-semibold text-slate-700">{formatCurrency(item.totalCost)}</td>
-                            <td className="p-2 whitespace-nowrap text-right"><button onClick={() => handleRemoveItem(menuItemIndex, itemIndex)} className="text-red-500 hover:text-red-700"><i className="fas fa-trash-alt"></i></button></td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                    <button onClick={() => handleAddItem(menuItemIndex)} className="mt-2 text-indigo-600 hover:text-indigo-800 text-sm font-semibold">
-                      <i className="fas fa-plus mr-1"></i> Adicionar Ingrediente
-                    </button>
+            {estimate.menuItems.map((menuItem, menuItemIndex) => {
+              const isExpanded = expandedMenus[menuItemIndex] || false;
+              return (
+                <div key={menuItemIndex} className="border border-slate-200 rounded-lg overflow-hidden">
+                  <button 
+                    onClick={() => toggleMenuExpansion(menuItemIndex)}
+                    className="flex justify-between items-center w-full p-4 bg-slate-50 hover:bg-slate-100 transition duration-150"
+                  >
+                    <h3 className="text-lg font-semibold text-slate-700">{menuItem.name}</h3>
+                    <ChevronDown className={`w-5 h-5 text-slate-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                  </button>
+                  
+                  {isExpanded && (
+                    <div className="p-4 pt-2 bg-white">
+                      <div className="overflow-x-auto">
+                          <table className="min-w-full divide-y divide-slate-200">
+                            <thead className="bg-white">
+                              <tr>
+                                <th className="px-2 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider w-2/5">Item</th>
+                                <th className="px-2 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Qtde.</th>
+                                <th className="px-2 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Un.</th>
+                                <th className="px-2 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Preço Unit. (R$)</th>
+                                <th className="px-2 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Custo Total</th>
+                                <th className="px-2 py-2 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Ação</th>
+                              </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-slate-200">
+                              {menuItem.ingredients.map((item, itemIndex) => (
+                                <tr key={itemIndex} className="hover:bg-slate-50">
+                                  <td className="p-2 whitespace-nowrap">
+                                    <input 
+                                      type="text" 
+                                      value={item.name} 
+                                      onChange={(e) => handleItemChange(menuItemIndex, itemIndex, 'name', e.target.value)} 
+                                      className="w-full bg-transparent p-1 rounded border border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 text-sm"
+                                    />
+                                  </td>
+                                  <td className="p-2 whitespace-nowrap">
+                                    <input 
+                                      type="number" 
+                                      value={item.qty} 
+                                      onChange={(e) => handleItemChange(menuItemIndex, itemIndex, 'qty', e.target.value)} 
+                                      className="w-20 bg-transparent p-1 rounded border border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 text-sm text-right"
+                                    />
+                                  </td>
+                                  <td className="p-2 whitespace-nowrap text-sm text-slate-500">
+                                    <input 
+                                      type="text" 
+                                      value={item.unit} 
+                                      onChange={(e) => handleItemChange(menuItemIndex, itemIndex, 'unit', e.target.value)} 
+                                      className="w-16 bg-transparent p-1 rounded border border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 text-sm"
+                                    />
+                                  </td>
+                                  <td className="p-2 whitespace-nowrap">
+                                    <input 
+                                      type="number" 
+                                      step="0.01" 
+                                      value={item.unitCost} 
+                                      onChange={(e) => handleItemChange(menuItemIndex, itemIndex, 'unitCost', e.target.value)} 
+                                      className="w-24 bg-transparent p-1 rounded border border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 text-sm text-right"
+                                    />
+                                  </td>
+                                  <td className="p-2 whitespace-nowrap text-sm font-semibold text-slate-700">{formatCurrency(item.totalCost)}</td>
+                                  <td className="p-2 whitespace-nowrap text-right">
+                                    <button onClick={() => handleRemoveItem(menuItemIndex, itemIndex)} className="text-red-500 hover:text-red-700 p-1 rounded">
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                          <button onClick={() => handleAddItem(menuItemIndex)} className="mt-4 text-indigo-600 hover:text-indigo-800 text-sm font-semibold flex items-center p-1">
+                            <Plus className="w-4 h-4 mr-1" /> Adicionar Ingrediente
+                          </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
@@ -178,12 +243,12 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                 <div className="space-y-3 text-sm">
                     <div className="flex justify-between"><span className="text-slate-500">Custo Ingredientes:</span> <span className="font-medium">{formatCurrency(estimate.totals.ingredients)}</span></div>
                     
-                    {estimate.totals.productionCost && (
+                    {estimate.totals.productionCost !== undefined && (
                       <div className="flex justify-between"><span className="text-slate-500">Custo Produção:</span> <span className="font-medium">{formatCurrency(estimate.totals.productionCost)}</span></div>
                     )}
 
                     <div 
-                      className="cursor-pointer"
+                      className="cursor-pointer p-1 -m-1 rounded hover:bg-slate-50 transition"
                       onClick={() => setIsLaborExpanded(!isLaborExpanded)}
                       aria-expanded={isLaborExpanded}
                     >
@@ -192,7 +257,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                         <span className="font-medium flex items-center">
                           {formatCurrency(estimate.totals.labor)}
                           {estimate.totals.laborDetails && estimate.totals.laborDetails.length > 0 && (
-                            <i className={`fas fa-chevron-down ml-2 text-xs text-slate-400 transition-transform duration-200 ${isLaborExpanded ? 'rotate-180' : ''}`}></i>
+                            <ChevronDown className={`w-4 h-4 ml-2 text-slate-400 transition-transform duration-200 ${isLaborExpanded ? 'rotate-180' : ''}`} />
                           )}
                         </span>
                       </div>
@@ -208,35 +273,38 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                         </div>
                     )}
                     
-                    {estimate.totals.otherCosts.map((cost, index) => (
-                        <div key={index} className="flex justify-between items-center group">
-                            <input 
-                                type="text"
-                                value={cost.name}
-                                onChange={(e) => handleOtherCostChange(index, 'name', e.target.value)}
-                                className="text-slate-500 bg-transparent p-0 border-0 focus:ring-0 w-3/5"
-                            />
-                             <div className="flex items-center">
-                                <span className="text-slate-500 mr-1">R$</span>
-                                <input 
-                                    type="number"
-                                    step="0.01"
-                                    value={cost.cost}
-                                    onChange={(e) => handleOtherCostChange(index, 'cost', e.target.value)}
-                                    className="font-medium bg-transparent p-1 rounded border-slate-200 w-24 text-right"
-                                />
-                                <button onClick={() => handleRemoveOtherCost(index)} className="ml-2 text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <i className="fas fa-trash-alt text-xs"></i>
-                                </button>
-                             </div>
-                        </div>
-                    ))}
-                     <button onClick={handleAddOtherCost} className="text-indigo-600 hover:text-indigo-800 text-xs font-semibold">
-                      <i className="fas fa-plus mr-1"></i> Adicionar Custo
-                    </button>
+                    <div className="pt-2 border-t border-slate-100">
+                      <h4 className="text-xs font-semibold text-slate-600 mb-2">Outros Custos</h4>
+                      {estimate.totals.otherCosts.map((cost, index) => (
+                          <div key={index} className="flex justify-between items-center group py-1">
+                              <input 
+                                  type="text"
+                                  value={cost.name}
+                                  onChange={(e) => handleOtherCostChange(index, 'name', e.target.value)}
+                                  className="text-slate-500 bg-transparent p-1 rounded border border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 w-3/5 text-sm"
+                              />
+                              <div className="flex items-center">
+                                  <span className="text-slate-500 mr-1">R$</span>
+                                  <input 
+                                      type="number"
+                                      step="0.01"
+                                      value={cost.cost}
+                                      onChange={(e) => handleOtherCostChange(index, 'cost', e.target.value)}
+                                      className="font-medium bg-transparent p-1 rounded border border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 w-24 text-right text-sm"
+                                  />
+                                  <button onClick={() => handleRemoveOtherCost(index)} className="ml-2 text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded">
+                                      <Trash2 className="w-3 h-3" />
+                                  </button>
+                              </div>
+                          </div>
+                      ))}
+                      <button onClick={handleAddOtherCost} className="mt-2 text-indigo-600 hover:text-indigo-800 text-xs font-semibold flex items-center p-1 -ml-1">
+                        <Plus className="w-3 h-3 mr-1" /> Adicionar Custo
+                      </button>
+                    </div>
 
 
-                    <div className="flex justify-between pt-2 border-t border-slate-200"><span className="text-slate-500">Impostos (Estimado):</span> <span className="font-medium">{formatCurrency(estimate.totals.tax)}</span></div>
+                    <div className="flex justify-between pt-2 border-t border-slate-200"><span className="text-slate-500">Impostos (8%):</span> <span className="font-medium">{formatCurrency(estimate.totals.tax)}</span></div>
                 </div>
 
                 <div className="my-4 border-t border-dashed"></div>
@@ -258,7 +326,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                         step="5"
                         value={margin}
                         onChange={(e) => setMargin(Number(e.target.value))}
-                        className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer"
+                        className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer range-lg"
                     />
                 </div>
 
