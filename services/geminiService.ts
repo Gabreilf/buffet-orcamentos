@@ -2,7 +2,15 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { Estimate, CustomCost } from '../types';
 
 // Assume process.env.API_KEY is configured in the environment
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+const apiKey = process.env.API_KEY as string;
+
+if (!apiKey) {
+    console.error("GEMINI_API_KEY is not set. Please check your environment configuration.");
+    // Throwing an error here prevents further execution if the key is missing
+    // but we will let the try/catch handle it in the function below for runtime safety.
+}
+
+const ai = new GoogleGenAI({ apiKey });
 
 const estimateSchema = {
     type: Type.OBJECT,
@@ -80,6 +88,10 @@ const estimateSchema = {
 };
 
 export const generateEstimateFromText = async (text: string, customCosts: CustomCost[]): Promise<Estimate> => {
+    if (!apiKey) {
+        throw new Error("A chave da API Gemini não está configurada. Por favor, verifique suas variáveis de ambiente.");
+    }
+    
     try {
         const customCostsString = customCosts
             .map(cost => `- Custo de "${cost.name}": ${cost.cost} BRL`)
@@ -128,6 +140,10 @@ export const generateEstimateFromText = async (text: string, customCosts: Custom
 
     } catch (error) {
         console.error("Error calling Gemini API:", error);
-        throw new Error("Não foi possível gerar o orçamento. Tente novamente com uma descrição mais detalhada.");
+        // Se o erro for de parsing, a mensagem será mais clara.
+        if (error instanceof SyntaxError) {
+             throw new Error("A IA retornou um formato inválido. Tente novamente ou simplifique o pedido.");
+        }
+        throw new Error("Não foi possível gerar o orçamento. Verifique a chave da API e tente novamente.");
     }
 };
