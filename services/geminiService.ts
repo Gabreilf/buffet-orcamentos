@@ -1,15 +1,10 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Estimate, CustomCost } from '../types';
 
-// Assume process.env.API_KEY is configured in the environment
+// The API key is injected by Vite from the environment variables (GEMINI_API_KEY)
 const apiKey = process.env.API_KEY as string;
 
-if (!apiKey) {
-    console.error("GEMINI_API_KEY is not set. Please check your environment configuration.");
-    // Throwing an error here prevents further execution if the key is missing
-    // but we will let the try/catch handle it in the function below for runtime safety.
-}
-
+// Initialize the client. It will use the injected apiKey.
 const ai = new GoogleGenAI({ apiKey });
 
 const estimateSchema = {
@@ -24,18 +19,11 @@ const estimateSchema = {
             items: {
                 type: Type.OBJECT,
                 properties: {
-                    name: { type: Type.STRING, description: "Nome do prato ou categoria (ex: Churrasco, Mesa de Frios)." },
-                    ingredients: {
-                        type: Type.ARRAY,
-                        description: "Ingredientes necessários para este prato.",
-                        items: {
-                            type: Type.OBJECT,
-                            properties: {
-                                name: { type: Type.STRING, description: "Nome do ingrediente." },
-                                qty: { type: Type.NUMBER, description: "Quantidade total necessária." },
-                                unit: { type: Type.STRING, description: "Unidade de medida (kg, g, L, ml, unidade, caixa, pacote)." },
-                                unitCost: { type: Type.NUMBER, description: "Custo estimado por unidade, baseado em preços médios de mercado no Brasil." },
-                                totalCost: { type: Type.NUMBER, description: "Custo total do item (quantidade * custo unitário)." },
+                    name: { type: Type.STRING, description: "Nome do ingrediente." },
+                    qty: { type: Type.NUMBER, description: "Quantidade total necessária." },
+                    unit: { type: Type.STRING, description: "Unidade de medida (kg, g, L, ml, unidade, caixa, pacote)." },
+                    unitCost: { type: Type.NUMBER, description: "Custo estimado por unidade, baseado em preços médios de mercado no Brasil." },
+                    totalCost: { type: Type.NUMBER, description: "Custo total do item (quantidade * custo unitário)." },
                             },
                             required: ["name", "qty", "unit", "unitCost", "totalCost"],
                         }
