@@ -19,11 +19,18 @@ const estimateSchema = {
             items: {
                 type: Type.OBJECT,
                 properties: {
-                    name: { type: Type.STRING, description: "Nome do ingrediente." },
-                    qty: { type: Type.NUMBER, description: "Quantidade total necessária." },
-                    unit: { type: Type.STRING, description: "Unidade de medida (kg, g, L, ml, unidade, caixa, pacote)." },
-                    unitCost: { type: Type.NUMBER, description: "Custo estimado por unidade, baseado em preços médios de mercado no Brasil." },
-                    totalCost: { type: Type.NUMBER, description: "Custo total do item (quantidade * custo unitário)." },
+                    name: { type: Type.STRING, description: "Nome do prato/item principal do menu." },
+                    ingredients: {
+                        type: Type.ARRAY,
+                        description: "Lista de ingredientes e seus custos.",
+                        items: {
+                            type: Type.OBJECT,
+                            properties: {
+                                name: { type: Type.STRING, description: "Nome do ingrediente." },
+                                qty: { type: Type.NUMBER, description: "Quantidade total necessária." },
+                                unit: { type: Type.STRING, description: "Unidade de medida (kg, g, L, ml, unidade, caixa, pacote)." },
+                                unitCost: { type: Type.NUMBER, description: "Custo estimado por unidade, baseado em preços médios de mercado no Brasil." },
+                                totalCost: { type: Type.NUMBER, description: "Custo total do item (quantidade * custo unitário)." },
                             },
                             required: ["name", "qty", "unit", "unitCost", "totalCost"],
                         }
