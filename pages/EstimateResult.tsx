@@ -16,12 +16,52 @@ const commonUnits = [
     'kg', 'g', 'L', 'ml', 'unidade', 'caixa', 'pacote', 'lata', 'litro', 'fardo'
 ];
 
+// Tipo interno para gerenciar as premissas de forma estruturada
+interface StructuredPremise {
+  id: string;
+  item: string;
+  quantity: number;
+  unit: string;
+}
+
+// Função para converter string[] (do AI) para StructuredPremise[]
+const parsePremises = (averages: string[]): StructuredPremise[] => {
+    return averages.map((avg, index) => {
+        // Regex para capturar Item, Quantidade e Unidade (ex: "Carne: 550g por pessoa")
+        const match = avg.match(/(.+):\s*(\d+\.?\d*)\s*([a-zA-Z]+)\s*por pessoa/i);
+        if (match) {
+            return {
+                id: `premise-${index}-${Date.now()}`,
+                item: match[1].trim(),
+                quantity: parseFloat(match[2]),
+                unit: match[3].trim(),
+            };
+        }
+        // Fallback para strings não parseáveis
+        return { id: `premise-${index}-${Date.now()}`, item: avg, quantity: 0, unit: '' };
+    });
+};
+
+// Função para converter StructuredPremise[] de volta para string[] (para salvar no Estimate)
+const serializePremises = (structured: StructuredPremise[]): string[] => {
+    return structured.map(p => {
+        if (p.quantity > 0 && p.unit) {
+            return `${p.item}: ${p.quantity}${p.unit} por pessoa`;
+        }
+        return p.item;
+    }).filter(s => s.trim() !== '');
+};
+
+
 const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstimate }) => {
   const [estimate, setEstimate] = useState(initialEstimate);
   const [margin, setMargin] = useState(40);
   const [isLaborExpanded, setIsLaborExpanded] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState<Record<number, boolean>>({});
   
+  // Estado estruturado para edição das premissas
+  const [structuredAverages, setStructuredAverages] = useState<StructuredPremise[]>(() => parsePremises(initialEstimate.consumptionAverages || []));
+
   // Novo estado para adicionar receita
   const [isAddingRecipe, setIsAddingRecipe] = useState(false);
   const [newRecipeName, setNewRecipeName] = useState('');
@@ -166,29 +206,56 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
       }
   };
   
-  // --- Handlers for Consumption Averages ---
-  const handleAverageChange = (index: number, value: string) => {
-      const newAverages = [...(estimate.consumptionAverages || [])];
-      newAverages[index] = value;
-      setEstimate(prev => ({
-          ...prev,
-          consumptionAverages: newAverages,
-      }));
+  // --- Handlers for Structured Consumption Averages ---
+  const handleStructuredPremiseChange = (id: string, field: keyof Omit<StructuredPremise, 'id'>, value: string | number) => {
+      setStructuredAverages(prev => {
+          const newAverages = prev.map(p => {
+              if (p.id === id) {
+                  if (field === 'quantity') {
+                      return { ...p, [field]: parseFloat(value as string) || 0 };
+                  }
+                  return { ...p, [field]: value as string };
+              }
+              return p;
+          });
+          
+          // Sincroniza de volta para o estado principal do Estimate
+          setEstimate(prevEst => ({
+              ...prevEst,
+              consumptionAverages: serializePremises(newAverages),
+          }));
+          
+          return newAverages;
+      });
   };
 
-  const handleAddAverage = () => {
-      setEstimate(prev => ({
-          ...prev,
-          consumptionAverages: [...(prev.consumptionAverages || []), 'Nova Premissa: 0'],
-      }));
+  const handleAddStructuredPremise = () => {
+      const newPremise: StructuredPremise = {
+          id: `premise-${Date.now()}`,
+          item: 'Novo Item',
+          quantity: 100,
+          unit: 'g',
+      };
+      
+      setStructuredAverages(prev => {
+          const newAverages = [...prev, newPremise];
+          setEstimate(prevEst => ({
+              ...prevEst,
+              consumptionAverages: serializePremises(newAverages),
+          }));
+          return newAverages;
+      });
   };
 
-  const handleRemoveAverage = (index: number) => {
-      const newAverages = (estimate.consumptionAverages || []).filter((_, i) => i !== index);
-      setEstimate(prev => ({
-          ...prev,
-          consumptionAverages: newAverages,
-      }));
+  const handleRemoveStructuredPremise = (id: string) => {
+      setStructuredAverages(prev => {
+          const newAverages = prev.filter(p => p.id !== id);
+          setEstimate(prevEst => ({
+              ...prevEst,
+              consumptionAverages: serializePremises(newAverages),
+          }));
+          return newAverages;
+      });
   };
   // -----------------------------------------
 
@@ -214,20 +281,39 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
             </button>
           </div>
           
-          {/* Editable Consumption Averages Section */}
+          {/* Editable Consumption Averages Section (Structured) */}
           <div className="mb-6 p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
               <h4 className="font-bold text-sm text-indigo-800 mb-3">Premissas de Cálculo (por pessoa)</h4>
+              <p className="text-xs text-indigo-700 mb-3 bg-indigo-100 p-2 rounded">
+                  *Nota: Alterar as premissas aqui é para documentação. Para alterar o custo, ajuste a "Qtde." do ingrediente na tabela abaixo.
+              </p>
               <div className="space-y-2">
-                  {(estimate.consumptionAverages || []).map((avg, index) => (
-                      <div key={index} className="flex items-center group">
+                  {structuredAverages.map((p) => (
+                      <div key={p.id} className="flex items-center space-x-2 group">
                           <input
                               type="text"
-                              value={avg}
-                              onChange={(e) => handleAverageChange(index, e.target.value)}
+                              value={p.item}
+                              onChange={(e) => handleStructuredPremiseChange(p.id, 'item', e.target.value)}
+                              placeholder="Item (ex: Carne)"
                               className="flex-1 bg-white p-2 rounded border border-indigo-300 focus:border-indigo-500 text-sm text-slate-700"
                           />
+                          <input
+                              type="number"
+                              value={p.quantity}
+                              onChange={(e) => handleStructuredPremiseChange(p.id, 'quantity', e.target.value)}
+                              placeholder="Qtde"
+                              className="w-20 bg-white p-2 rounded border border-indigo-300 focus:border-indigo-500 text-sm text-slate-700 text-right"
+                          />
+                          <input
+                              type="text"
+                              value={p.unit}
+                              onChange={(e) => handleStructuredPremiseChange(p.id, 'unit', e.target.value)}
+                              placeholder="Unidade"
+                              className="w-20 bg-white p-2 rounded border border-indigo-300 focus:border-indigo-500 text-sm text-slate-700"
+                          />
+                          <span className="text-sm text-slate-500 whitespace-nowrap">/ pessoa</span>
                           <button 
-                              onClick={() => handleRemoveAverage(index)} 
+                              onClick={() => handleRemoveStructuredPremise(p.id)} 
                               className="ml-2 text-red-500 hover:text-red-700 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
                           >
                               <Trash2 className="w-4 h-4" />
@@ -235,7 +321,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                       </div>
                   ))}
               </div>
-              <button onClick={handleAddAverage} className="mt-3 text-indigo-600 hover:text-indigo-800 text-sm font-semibold flex items-center p-1 -ml-1">
+              <button onClick={handleAddStructuredPremise} className="mt-3 text-indigo-600 hover:text-indigo-800 text-sm font-semibold flex items-center p-1 -ml-1">
                   <Plus className="w-4 h-4 mr-1" /> Adicionar Premissa
               </button>
           </div>
