@@ -57,6 +57,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
   const [estimate, setEstimate] = useState(initialEstimate);
   const [margin, setMargin] = useState(40);
   const [isLaborExpanded, setIsLaborExpanded] = useState(false);
+  const [isProductionExpanded, setIsProductionExpanded] = useState(false); // Novo estado para Custo de Produção
   const [expandedMenus, setExpandedMenus] = useState<Record<number, boolean>>({});
   
   // Estado estruturado para edição das premissas
@@ -76,6 +77,10 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
     }));
   };
 
+  const getKitchenStaffCost = useCallback(() => {
+      return estimate.totals.laborDetails?.filter(d => d.role.toLowerCase().includes('cozinheir') || d.role.toLowerCase().includes('auxiliar')).reduce((acc, d) => acc + d.totalCost, 0) || 0;
+  }, [estimate.totals.laborDetails]);
+
   const recalculateTotals = useCallback((menuItems: MenuItemDetail[], otherCosts: OtherCost[]) => {
     const newTotals = { ...estimate.totals };
 
@@ -89,7 +94,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
     const laborTotal = newTotals.laborDetails?.reduce((acc, d) => acc + d.totalCost, 0) || 0;
     newTotals.labor = laborTotal;
 
-    const kitchenStaffCost = newTotals.laborDetails?.filter(d => d.role.toLowerCase().includes('cozinheir') || d.role.toLowerCase().includes('auxiliar')).reduce((acc, d) => acc + d.totalCost, 0) || 0;
+    const kitchenStaffCost = laborTotal > 0 ? getKitchenStaffCost() : 0; // Recalcula o custo da cozinha
     newTotals.productionCost = newTotals.ingredients + kitchenStaffCost;
     
     // Tax calculation based on ingredients + labor + other costs
@@ -99,7 +104,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
     
     newTotals.otherCosts = otherCosts;
     return newTotals;
-  }, [estimate.totals]);
+  }, [estimate.totals, getKitchenStaffCost]);
 
 
   const handleItemChange = (menuItemIndex: number, itemIndex: number, field: keyof EstimateItem, value: string) => {
@@ -299,6 +304,8 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
     const suggestedPrice = totalCost * (1 + margin / 100);
     return { ...estimate.totals, suggestedPrice };
   }, [estimate.totals, margin]);
+  
+  const kitchenStaffCost = getKitchenStaffCost();
 
   return (
     <div className="container mx-auto">
@@ -506,9 +513,35 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                 <div className="space-y-3 text-sm">
                     <div className="flex justify-between"><span className="text-slate-500">Custo Ingredientes:</span> <span className="font-medium">{formatCurrency(estimate.totals.ingredients)}</span></div>
                     
+                    {/* Custo de Produção Expandível */}
                     {estimate.totals.productionCost !== undefined && (
-                      <div className="flex justify-between"><span className="text-slate-500">Custo Produção:</span> <span className="font-medium">{formatCurrency(estimate.totals.productionCost)}</span></div>
+                        <div 
+                            className="cursor-pointer p-1 -m-1 rounded hover:bg-slate-50 transition"
+                            onClick={() => setIsProductionExpanded(!isProductionExpanded)}
+                            aria-expanded={isProductionExpanded}
+                        >
+                            <div className="flex justify-between">
+                                <span className="text-slate-800 font-semibold">Custo Produção:</span>
+                                <span className="font-bold flex items-center text-slate-800">
+                                    {formatCurrency(estimate.totals.productionCost)}
+                                    <ChevronDown className={`w-4 h-4 ml-2 text-slate-400 transition-transform duration-200 ${isProductionExpanded ? 'rotate-180' : ''}`} />
+                                </span>
+                            </div>
+                        </div>
                     )}
+                    {isProductionExpanded && estimate.totals.productionCost !== undefined && (
+                        <div className="pl-4 mt-2 space-y-1 border-l-2 border-slate-200 bg-slate-50 p-2 rounded">
+                            <div className="flex justify-between text-xs">
+                                <span className="text-slate-500">Ingredientes:</span>
+                                <span className="font-mono">{formatCurrency(estimate.totals.ingredients)}</span>
+                            </div>
+                            <div className="flex justify-between text-xs">
+                                <span className="text-slate-500">Equipe de Cozinha:</span>
+                                <span className="font-mono">{formatCurrency(kitchenStaffCost)}</span>
+                            </div>
+                        </div>
+                    )}
+                    {/* Fim Custo de Produção Expandível */}
 
                     <div 
                       className="cursor-pointer p-1 -m-1 rounded hover:bg-slate-50 transition"
@@ -516,7 +549,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                       aria-expanded={isLaborExpanded}
                     >
                       <div className="flex justify-between">
-                        <span className="text-slate-500">Custo Mão de Obra:</span>
+                        <span className="text-slate-500">Custo Mão de Obra Total:</span>
                         <span className="font-medium flex items-center">
                           {formatCurrency(estimate.totals.labor)}
                           {estimate.totals.laborDetails && estimate.totals.laborDetails.length > 0 && (
