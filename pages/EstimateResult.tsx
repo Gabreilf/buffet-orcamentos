@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { Estimate, EstimateItem, MenuItemDetail, OtherCost, LaborDetail } from '../types';
-import { ChevronDown, Trash2, Plus, FileText, Loader2 } from 'lucide-react';
+import { ChevronDown, Trash2, Plus, FileText, Loader2, Pencil } from 'lucide-react';
 import { generateMenuItemDetails } from '../services/geminiService';
 
 interface EstimateResultProps {
@@ -62,6 +62,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
   
   // Estado estruturado para edição das premissas
   const [structuredAverages, setStructuredAverages] = useState<StructuredPremise[]>(() => parsePremises(initialEstimate.consumptionAverages || []));
+  const [isPremiseEditing, setIsPremiseEditing] = useState(false); // Novo estado de edição
 
   // Novo estado para adicionar receita
   const [isAddingRecipe, setIsAddingRecipe] = useState(false);
@@ -311,6 +312,12 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
       });
   };
 
+  const handleSavePremises = () => {
+      // A lógica de atualização do estimate já está em handleStructuredPremiseChange
+      // Aqui apenas desativamos o modo de edição.
+      setIsPremiseEditing(false);
+  };
+
   const handleAddStructuredPremise = () => {
       const newPremise: StructuredPremise = {
           id: `premise-${Date.now()}`,
@@ -366,48 +373,85 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
           </div>
           
           {/* Editable Consumption Averages Section (Structured) */}
-          <div className="mb-6 p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
-              <h4 className="font-bold text-sm text-indigo-800 mb-3">Premissas de Cálculo (por pessoa)</h4>
+          <div className="mb-6 p-4 bg-indigo-50 border border-indigo-200 rounded-lg relative">
+              <div className="flex justify-between items-start mb-3">
+                  <h4 className="font-bold text-sm text-indigo-800">Premissas de Cálculo (por pessoa)</h4>
+                  <button 
+                      onClick={() => setIsPremiseEditing(prev => !prev)}
+                      className={`p-1 rounded transition-colors ${isPremiseEditing ? 'bg-indigo-200 text-indigo-800' : 'text-indigo-600 hover:bg-indigo-100'}`}
+                      title={isPremiseEditing ? "Sair do modo de edição" : "Editar premissas"}
+                  >
+                      <Pencil className="w-4 h-4" />
+                  </button>
+              </div>
+              
               <p className="text-xs text-indigo-700 mb-3 bg-indigo-100 p-2 rounded">
                   *Nota: Alterar as premissas aqui recalcula a **quantidade total** dos ingredientes correspondentes (ex: 'Carne' afeta 'Picanha' e 'Fraldinha').
               </p>
+              
               <div className="space-y-2">
                   {structuredAverages.map((p) => (
                       <div key={p.id} className="flex items-center space-x-2 group">
-                          <input
-                              type="text"
-                              value={p.item}
-                              onChange={(e) => handleStructuredPremiseChange(p.id, 'item', e.target.value)}
-                              placeholder="Item (ex: Carne)"
-                              className="flex-1 bg-white p-2 rounded border border-indigo-300 focus:border-indigo-500 text-sm text-slate-700"
-                          />
-                          <input
-                              type="number"
-                              value={p.quantity}
-                              onChange={(e) => handleStructuredPremiseChange(p.id, 'quantity', e.target.value)}
-                              placeholder="Qtde"
-                              className="w-20 bg-white p-2 rounded border border-indigo-300 focus:border-indigo-500 text-sm text-slate-700 text-right"
-                          />
-                          <input
-                              type="text"
-                              value={p.unit}
-                              onChange={(e) => handleStructuredPremiseChange(p.id, 'unit', e.target.value)}
-                              placeholder="Unidade"
-                              className="w-20 bg-white p-2 rounded border border-indigo-300 focus:border-indigo-500 text-sm text-slate-700"
-                          />
+                          {isPremiseEditing ? (
+                              <input
+                                  type="text"
+                                  value={p.item}
+                                  onChange={(e) => handleStructuredPremiseChange(p.id, 'item', e.target.value)}
+                                  placeholder="Item (ex: Carne)"
+                                  className="flex-1 bg-white p-2 rounded border border-indigo-300 focus:border-indigo-500 text-sm text-slate-700"
+                              />
+                          ) : (
+                              <span className="flex-1 p-2 text-sm text-slate-700">{p.item}</span>
+                          )}
+                          
+                          {isPremiseEditing ? (
+                              <input
+                                  type="number"
+                                  value={p.quantity}
+                                  onChange={(e) => handleStructuredPremiseChange(p.id, 'quantity', e.target.value)}
+                                  placeholder="Qtde"
+                                  className="w-20 bg-white p-2 rounded border border-indigo-300 focus:border-indigo-500 text-sm text-slate-700 text-right"
+                              />
+                          ) : (
+                              <span className="w-20 p-2 text-sm text-slate-700 text-right font-medium">{p.quantity}</span>
+                          )}
+                          
+                          {isPremiseEditing ? (
+                              <input
+                                  type="text"
+                                  value={p.unit}
+                                  onChange={(e) => handleStructuredPremiseChange(p.id, 'unit', e.target.value)}
+                                  placeholder="Unidade"
+                                  className="w-20 bg-white p-2 rounded border border-indigo-300 focus:border-indigo-500 text-sm text-slate-700"
+                              />
+                          ) : (
+                              <span className="w-20 p-2 text-sm text-slate-700">{p.unit}</span>
+                          )}
+                          
                           <span className="text-sm text-slate-500 whitespace-nowrap">/ pessoa</span>
-                          <button 
-                              onClick={() => handleRemoveStructuredPremise(p.id)} 
-                              className="ml-2 text-red-500 hover:text-red-700 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                              <Trash2 className="w-4 h-4" />
-                          </button>
+                          
+                          {isPremiseEditing && (
+                              <button 
+                                  onClick={() => handleRemoveStructuredPremise(p.id)} 
+                                  className="ml-2 text-red-500 hover:text-red-700 p-1 rounded transition-opacity"
+                              >
+                                  <Trash2 className="w-4 h-4" />
+                              </button>
+                          )}
                       </div>
                   ))}
               </div>
-              <button onClick={handleAddStructuredPremise} className="mt-3 text-indigo-600 hover:text-indigo-800 text-sm font-semibold flex items-center p-1 -ml-1">
-                  <Plus className="w-4 h-4 mr-1" /> Adicionar Premissa
-              </button>
+              
+              {isPremiseEditing && (
+                  <>
+                      <button onClick={handleAddStructuredPremise} className="mt-3 text-indigo-600 hover:text-indigo-800 text-sm font-semibold flex items-center p-1 -ml-1">
+                          <Plus className="w-4 h-4 mr-1" /> Adicionar Premissa
+                      </button>
+                      <button onClick={handleSavePremises} className="mt-4 w-full bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 transition duration-300 ease-in-out shadow-md">
+                          Salvar Premissas
+                      </button>
+                  </>
+              )}
           </div>
           {/* End Editable Consumption Averages Section */}
 
