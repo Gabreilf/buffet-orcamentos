@@ -82,6 +82,35 @@ const estimateSchema = {
     required: ["eventType", "guests", "menuItems", "totals", "consumptionAverages"],
 };
 
+/**
+ * Testa a conectividade com a API Gemini.
+ * @returns {Promise<boolean>} True se a conexão for bem-sucedida.
+ */
+export const testGeminiConnectivity = async (): Promise<boolean> => {
+    if (!apiKey) {
+        console.error("API Key is missing.");
+        return false;
+    }
+    
+    try {
+        // Tenta uma chamada simples para verificar a autenticação e a conectividade.
+        // Usamos um modelo leve e uma requisição mínima.
+        await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: "Hello",
+            config: {
+                maxOutputTokens: 1,
+            }
+        });
+        console.log("Gemini API connection successful.");
+        return true;
+    } catch (error) {
+        console.error("Gemini API connection failed:", error);
+        return false;
+    }
+};
+
+
 export const generateEstimateFromText = async (text: string, customCosts: CustomCost[]): Promise<Estimate> => {
     if (!apiKey) {
         throw new Error("A chave da API Gemini não está configurada. Por favor, verifique suas variáveis de ambiente.");
