@@ -160,6 +160,32 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
           setIsRecipeLoading(false);
       }
   };
+  
+  // --- Handlers for Consumption Averages ---
+  const handleAverageChange = (index: number, value: string) => {
+      const newAverages = [...(estimate.consumptionAverages || [])];
+      newAverages[index] = value;
+      setEstimate(prev => ({
+          ...prev,
+          consumptionAverages: newAverages,
+      }));
+  };
+
+  const handleAddAverage = () => {
+      setEstimate(prev => ({
+          ...prev,
+          consumptionAverages: [...(prev.consumptionAverages || []), 'Nova Premissa: 0'],
+      }));
+  };
+
+  const handleRemoveAverage = (index: number) => {
+      const newAverages = (estimate.consumptionAverages || []).filter((_, i) => i !== index);
+      setEstimate(prev => ({
+          ...prev,
+          consumptionAverages: newAverages,
+      }));
+  };
+  // -----------------------------------------
 
   const updatedTotals = useMemo(() => {
     const totalCost = estimate.totals.totalCost;
@@ -183,16 +209,32 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
             </button>
           </div>
           
-          {estimate.consumptionAverages && estimate.consumptionAverages.length > 0 && (
-            <div className="mb-6 p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
-              <h4 className="font-bold text-sm text-indigo-800 mb-2">Premissas de Cálculo (por pessoa)</h4>
-              <ul className="list-disc list-inside text-sm text-slate-600 space-y-1">
-                {estimate.consumptionAverages.map((avg, index) => (
-                  <li key={index}>{avg}</li>
-                ))}
-              </ul>
-            </div>
-          )}
+          {/* Editable Consumption Averages Section */}
+          <div className="mb-6 p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
+              <h4 className="font-bold text-sm text-indigo-800 mb-3">Premissas de Cálculo (por pessoa)</h4>
+              <div className="space-y-2">
+                  {(estimate.consumptionAverages || []).map((avg, index) => (
+                      <div key={index} className="flex items-center group">
+                          <input
+                              type="text"
+                              value={avg}
+                              onChange={(e) => handleAverageChange(index, e.target.value)}
+                              className="flex-1 bg-white p-2 rounded border border-indigo-300 focus:border-indigo-500 text-sm text-slate-700"
+                          />
+                          <button 
+                              onClick={() => handleRemoveAverage(index)} 
+                              className="ml-2 text-red-500 hover:text-red-700 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                              <Trash2 className="w-4 h-4" />
+                          </button>
+                      </div>
+                  ))}
+              </div>
+              <button onClick={handleAddAverage} className="mt-3 text-indigo-600 hover:text-indigo-800 text-sm font-semibold flex items-center p-1 -ml-1">
+                  <Plus className="w-4 h-4 mr-1" /> Adicionar Premissa
+              </button>
+          </div>
+          {/* End Editable Consumption Averages Section */}
 
           <div className="space-y-6">
             {estimate.menuItems.map((menuItem, menuItemIndex) => {
