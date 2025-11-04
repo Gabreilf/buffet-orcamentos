@@ -208,8 +208,10 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
   
   // --- Handlers for Structured Consumption Averages ---
   const handleStructuredPremiseChange = (id: string, field: keyof Omit<StructuredPremise, 'id'>, value: string | number) => {
+      let newAverages: StructuredPremise[] = [];
+      
       setStructuredAverages(prev => {
-          const newAverages = prev.map(p => {
+          newAverages = prev.map(p => {
               if (p.id === id) {
                   if (field === 'quantity') {
                       return { ...p, [field]: parseFloat(value as string) || 0 };
@@ -218,14 +220,47 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
               }
               return p;
           });
+          return newAverages;
+      });
+      
+      // 1. Sincroniza de volta para o estado principal do Estimate (string array)
+      setEstimate(prevEst => {
+          const serializedAverages = serializePremises(newAverages);
           
-          // Sincroniza de volta para o estado principal do Estimate
-          setEstimate(prevEst => ({
-              ...prevEst,
-              consumptionAverages: serializePremises(newAverages),
+          // 2. Recalcula as quantidades dos ingredientes
+          const updatedMenuItems = prevEst.menuItems.map(menuItem => ({
+              ...menuItem,
+              ingredients: menuItem.ingredients.map(ingredient => {
+                  const premise = newAverages.find(p => 
+                      ingredient.name.toLowerCase().includes(p.item.toLowerCase()) && p.quantity > 0
+                  );
+                  
+                  if (premise) {
+                      // Se a premissa for encontrada, recalcula a quantidade total (qty)
+                      // Nota: Assumimos que a unidade da premissa (p.unit) é a mesma unidade do ingrediente (ingredient.unit)
+                      const newQty = premise.quantity * prevEst.guests;
+                      const newTotalCost = newQty * ingredient.unitCost;
+                      
+                      return {
+                          ...ingredient,
+                          qty: newQty,
+                          totalCost: newTotalCost,
+                          unit: premise.unit, // Atualiza a unidade do ingrediente para corresponder à premissa
+                      };
+                  }
+                  return ingredient;
+              })
           }));
           
-          return newAverages;
+          // 3. Recalcula os totais financeiros com os novos ingredientes
+          const newTotals = recalculateTotals(updatedMenuItems, prevEst.totals.otherCosts);
+          
+          return {
+              ...prevEst,
+              consumptionAverages: serializedAverages,
+              menuItems: updatedMenuItems,
+              totals: newTotals,
+          };
       });
   };
 
@@ -285,7 +320,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
           <div className="mb-6 p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
               <h4 className="font-bold text-sm text-indigo-800 mb-3">Premissas de Cálculo (por pessoa)</h4>
               <p className="text-xs text-indigo-700 mb-3 bg-indigo-100 p-2 rounded">
-                  *Nota: Alterar as premissas aqui é para documentação. Para alterar o custo, ajuste a "Qtde." do ingrediente na tabela abaixo.
+                  *Nota: Alterar as premissas aqui recalcula a **quantidade total** dos ingredientes correspondentes (ex: 'Carne' afeta 'Picanha' e 'Fraldinha').
               </p>
               <div className="space-y-2">
                   {structuredAverages.map((p) => (
