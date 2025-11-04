@@ -1,11 +1,34 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { Estimate, CustomCost } from '../types';
+import { Estimate, CustomCost, MenuItemDetail } from '../types';
 
 // The API key is injected by Vite from the environment variables (GEMINI_API_KEY)
 const apiKey = process.env.API_KEY as string;
 
 // Initialize the client. It will use the injected apiKey.
 const ai = new GoogleGenAI({ apiKey });
+
+const menuItemSchema = {
+    type: Type.OBJECT,
+    properties: {
+        name: { type: Type.STRING, description: "Nome do prato/item principal do menu." },
+        ingredients: {
+            type: Type.ARRAY,
+            description: "Lista de ingredientes e seus custos.",
+            items: {
+                type: Type.OBJECT,
+                properties: {
+                    name: { type: Type.STRING, description: "Nome do ingrediente." },
+                    qty: { type: Type.NUMBER, description: "Quantidade total necessária." },
+                    unit: { type: Type.STRING, description: "Unidade de medida (kg, g, L, ml, unidade, caixa, pacote)." },
+                    unitCost: { type: Type.NUMBER, description: "Custo estimado por unidade, baseado em preços médios de mercado no Brasil." },
+                    totalCost: { type: Type.NUMBER, description: "Custo total do item (quantidade * custo unitário)." },
+                },
+                required: ["name", "qty", "unit", "unitCost", "totalCost"],
+            }
+        }
+    },
+    required: ["name", "ingredients"],
+};
 
 const estimateSchema = {
     type: Type.OBJECT,
@@ -16,28 +39,7 @@ const estimateSchema = {
         menuItems: {
             type: Type.ARRAY,
             description: "Lista de pratos do menu, cada um com seus respectivos ingredientes.",
-            items: {
-                type: Type.OBJECT,
-                properties: {
-                    name: { type: Type.STRING, description: "Nome do prato/item principal do menu." },
-                    ingredients: {
-                        type: Type.ARRAY,
-                        description: "Lista de ingredientes e seus custos.",
-                        items: {
-                            type: Type.OBJECT,
-                            properties: {
-                                name: { type: Type.STRING, description: "Nome do ingrediente." },
-                                qty: { type: Type.NUMBER, description: "Quantidade total necessária." },
-                                unit: { type: Type.STRING, description: "Unidade de medida (kg, g, L, ml, unidade, caixa, pacote)." },
-                                unitCost: { type: Type.NUMBER, description: "Custo estimado por unidade, baseado em preços médios de mercado no Brasil." },
-                                totalCost: { type: Type.NUMBER, description: "Custo total do item (quantidade * custo unitário)." },
-                            },
-                            required: ["name", "qty", "unit", "unitCost", "totalCost"],
-                        }
-                    }
-                },
-                required: ["name", "ingredients"],
-            }
+            items: menuItemSchema, // Reutilizando o esquema
         },
         totals: {
             type: Type.OBJECT,
@@ -107,6 +109,43 @@ export const testGeminiConnectivity = async (): Promise<boolean> => {
     } catch (error) {
         console.error("Gemini API connection failed:", error);
         return false;
+    }
+};
+
+/**
+ * Gera os detalhes de ingredientes e custos para um único item de menu.
+ */
+export const generateMenuItemDetails = async (menuItemName: string, guests: number): Promise<MenuItemDetail> => {
+    if (!apiKey) {
+        throw new Error("A chave da API Gemini não está configurada.");
+    }
+    
+    try {
+        const result = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: `Calcule os ingredientes e custos necessários para preparar o prato "${menuItemName}" para um evento com ${guests} convidados.
+
+            Sua tarefa é:
+            1.  Determinar a quantidade de cada ingrediente com base no número de convidados.
+            2.  Estimar o custo unitário de cada ingrediente (em BRL).
+            3.  Calcular o custo total de cada ingrediente (quantidade * custo unitário).
+            
+            O resultado DEVE ser um objeto JSON que siga estritamente o schema fornecido.`,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: menuItemSchema,
+            },
+        });
+        
+        const jsonResponse = JSON.parse(result.text);
+        return jsonResponse as MenuItemDetail;
+
+    } catch (error) {
+        console.error("Error calling Gemini API for menu item generation:", error);
+        if (error instanceof SyntaxError) {
+             throw new Error("A IA retornou um formato inválido ao calcular a receita. Tente novamente.");
+        }
+        throw new Error("Não foi possível calcular a receita. Verifique a chave da API e tente novamente.");
     }
 };
 

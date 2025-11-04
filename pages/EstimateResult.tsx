@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { Estimate, EstimateItem, MenuItemDetail, OtherCost } from '../types';
-import { ChevronDown, Trash2, Plus, FileText } from 'lucide-react';
+import { ChevronDown, Trash2, Plus, FileText, Loader2 } from 'lucide-react';
+import { generateMenuItemDetails } from '../services/geminiService';
 
 interface EstimateResultProps {
   estimate: Estimate;
@@ -14,8 +15,14 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
   const [estimate, setEstimate] = useState(initialEstimate);
   const [margin, setMargin] = useState(40);
   const [isLaborExpanded, setIsLaborExpanded] = useState(false);
-  // Estado para controlar quais seções de menu estão abertas
   const [expandedMenus, setExpandedMenus] = useState<Record<number, boolean>>({});
+  
+  // Novo estado para adicionar receita
+  const [isAddingRecipe, setIsAddingRecipe] = useState(false);
+  const [newRecipeName, setNewRecipeName] = useState('');
+  const [isRecipeLoading, setIsRecipeLoading] = useState(false);
+  const [recipeError, setRecipeError] = useState<string | null>(null);
+
 
   const toggleMenuExpansion = (index: number) => {
     setExpandedMenus(prev => ({
@@ -115,6 +122,43 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
       newOtherCosts.splice(index, 1);
       const newTotals = recalculateTotals(estimate.menuItems, newOtherCosts);
       setEstimate({...estimate, totals: newTotals });
+  };
+
+  const handleAddRecipe = async () => {
+      if (!newRecipeName.trim()) {
+          setRecipeError("Por favor, insira o nome da receita.");
+          return;
+      }
+      
+      setIsRecipeLoading(true);
+      setRecipeError(null);
+      
+      try {
+          const newMenuItem = await generateMenuItemDetails(newRecipeName, estimate.guests);
+          
+          const newMenuItems = [...estimate.menuItems, newMenuItem];
+          const newTotals = recalculateTotals(newMenuItems, estimate.totals.otherCosts);
+          
+          setEstimate(prev => ({
+              ...prev,
+              menuItems: newMenuItems,
+              totals: newTotals,
+          }));
+          
+          // Expandir o novo item automaticamente
+          setExpandedMenus(prev => ({
+              ...prev,
+              [newMenuItems.length - 1]: true,
+          }));
+
+          setNewRecipeName('');
+          setIsAddingRecipe(false);
+          
+      } catch (e: any) {
+          setRecipeError(e.message || "Erro ao calcular a receita pela IA.");
+      } finally {
+          setIsRecipeLoading(false);
+      }
   };
 
   const updatedTotals = useMemo(() => {
@@ -224,7 +268,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                             </tbody>
                           </table>
                           <button onClick={() => handleAddItem(menuItemIndex)} className="mt-4 text-indigo-600 hover:text-indigo-800 text-sm font-semibold flex items-center p-1">
-                            <Plus className="w-4 h-4 mr-1" /> Adicionar Ingrediente
+                            <Plus className="w-4 h-4 mr-1" /> Adicionar Ingrediente Manualmente
                           </button>
                       </div>
                     </div>
@@ -232,6 +276,52 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                 </div>
               );
             })}
+          </div>
+          
+          {/* Add Recipe Section */}
+          <div className="mt-8 p-4 border-2 border-dashed border-indigo-300 rounded-lg bg-indigo-50">
+              <h3 className="text-lg font-bold text-indigo-800 mb-3">Adicionar Nova Receita (via IA)</h3>
+              
+              {isAddingRecipe ? (
+                  <div className="space-y-4">
+                      {recipeError && <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-3 rounded-md text-sm">{recipeError}</div>}
+                      <input
+                          type="text"
+                          value={newRecipeName}
+                          onChange={(e) => setNewRecipeName(e.target.value)}
+                          placeholder="Ex: Inhoque de batata com molho bolonhesa"
+                          className="w-full p-3 border border-slate-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                          disabled={isRecipeLoading}
+                      />
+                      <div className="flex space-x-3">
+                          <button
+                              onClick={handleAddRecipe}
+                              disabled={isRecipeLoading || !newRecipeName.trim()}
+                              className="flex-1 bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 disabled:bg-indigo-300 transition duration-300 ease-in-out shadow-md flex items-center justify-center"
+                          >
+                              {isRecipeLoading ? (
+                                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                              ) : (
+                                  <Plus className="w-5 h-5 mr-2" />
+                              )}
+                              Calcular Receita para {estimate.guests} Convidados
+                          </button>
+                          <button
+                              onClick={() => { setIsAddingRecipe(false); setNewRecipeName(''); setRecipeError(null); }}
+                              className="bg-slate-200 text-slate-700 font-bold py-2 px-4 rounded-lg hover:bg-slate-300 transition"
+                          >
+                              Cancelar
+                          </button>
+                      </div>
+                  </div>
+              ) : (
+                  <button
+                      onClick={() => setIsAddingRecipe(true)}
+                      className="w-full bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-600 transition duration-300 ease-in-out shadow-md flex items-center justify-center"
+                  >
+                      <Plus className="w-5 h-5 mr-2" /> Adicionar Receita com IA
+                  </button>
+              )}
           </div>
         </div>
 
