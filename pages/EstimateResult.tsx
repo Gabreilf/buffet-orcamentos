@@ -401,7 +401,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                                   className="flex-1 bg-white p-2 rounded border border-indigo-300 focus:border-indigo-500 text-sm text-slate-700"
                               />
                           ) : (
-                              <span className="flex-1 p-2 text-sm text-slate-700">{p.item}</span>
+                              <span className="flex-1 p-2 text-sm text-slate-700 truncate">{p.item}</span>
                           )}
                           
                           {isPremiseEditing ? (
@@ -417,13 +417,16 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                           )}
                           
                           {isPremiseEditing ? (
-                              <input
-                                  type="text"
+                              <select
                                   value={p.unit}
                                   onChange={(e) => handleStructuredPremiseChange(p.id, 'unit', e.target.value)}
-                                  placeholder="Unidade"
                                   className="w-20 bg-white p-2 rounded border border-indigo-300 focus:border-indigo-500 text-sm text-slate-700"
-                              />
+                              >
+                                  {commonUnits.map(unit => (
+                                      <option key={unit} value={unit}>{unit}</option>
+                                  ))}
+                                  {!commonUnits.includes(p.unit) && p.unit && <option value={p.unit}>{p.unit}</option>}
+                              </select>
                           ) : (
                               <span className="w-20 p-2 text-sm text-slate-700">{p.unit}</span>
                           )}
