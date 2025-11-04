@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { Estimate, EstimateItem, MenuItemDetail, OtherCost } from '../types';
+import { Estimate, EstimateItem, MenuItemDetail, OtherCost, LaborDetail } from '../types';
 import { ChevronDown, Trash2, Plus, FileText, Loader2 } from 'lucide-react';
 import { generateMenuItemDetails } from '../services/geminiService';
 
@@ -57,7 +57,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
   const [estimate, setEstimate] = useState(initialEstimate);
   const [margin, setMargin] = useState(40);
   const [isLaborExpanded, setIsLaborExpanded] = useState(false);
-  const [isProductionExpanded, setIsProductionExpanded] = useState(false); // Novo estado para Custo de Produção
+  const [isProductionExpanded, setIsProductionExpanded] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState<Record<number, boolean>>({});
   
   // Estado estruturado para edição das premissas
@@ -81,7 +81,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
       return estimate.totals.laborDetails?.filter(d => d.role.toLowerCase().includes('cozinheir') || d.role.toLowerCase().includes('auxiliar')).reduce((acc, d) => acc + d.totalCost, 0) || 0;
   }, [estimate.totals.laborDetails]);
 
-  const recalculateTotals = useCallback((menuItems: MenuItemDetail[], otherCosts: OtherCost[]) => {
+  const recalculateTotals = useCallback((menuItems: MenuItemDetail[], otherCosts: OtherCost[], laborDetails?: LaborDetail[]) => {
     const newTotals = { ...estimate.totals };
 
     newTotals.ingredients = menuItems.reduce((acc, menuItem) => {
@@ -90,11 +90,15 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
     
     const otherCostsTotal = otherCosts.reduce((acc, cost) => acc + (cost.cost || 0), 0);
 
-    // Recalculate labor total based on laborDetails (if available)
-    const laborTotal = newTotals.laborDetails?.reduce((acc, d) => acc + d.totalCost, 0) || 0;
-    newTotals.labor = laborTotal;
+    // Use os laborDetails passados ou os existentes
+    const currentLaborDetails = laborDetails || newTotals.laborDetails;
 
-    const kitchenStaffCost = laborTotal > 0 ? getKitchenStaffCost() : 0; // Recalcula o custo da cozinha
+    // Recalculate labor total based on laborDetails
+    const laborTotal = currentLaborDetails?.reduce((acc, d) => acc + (d.totalCost || 0), 0) || 0;
+    newTotals.labor = laborTotal;
+    newTotals.laborDetails = currentLaborDetails; // Atualiza os detalhes no objeto totals
+
+    const kitchenStaffCost = currentLaborDetails?.filter(d => d.role.toLowerCase().includes('cozinheir') || d.role.toLowerCase().includes('auxiliar')).reduce((acc, d) => acc + (d.totalCost || 0), 0) || 0;
     newTotals.productionCost = newTotals.ingredients + kitchenStaffCost;
     
     // Tax calculation based on ingredients + labor + other costs
@@ -104,7 +108,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
     
     newTotals.otherCosts = otherCosts;
     return newTotals;
-  }, [estimate.totals, getKitchenStaffCost]);
+  }, [estimate.totals]);
 
 
   const handleItemChange = (menuItemIndex: number, itemIndex: number, field: keyof EstimateItem, value: string) => {
@@ -125,6 +129,44 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
       const newTotals = recalculateTotals(newMenuItems, estimate.totals.otherCosts);
       setEstimate({...estimate, menuItems: newMenuItems, totals: newTotals });
   }
+  
+  const handleLaborDetailChange = (index: number, field: keyof LaborDetail, value: string) => {
+      if (!estimate.totals.laborDetails) return;
+
+      const newLaborDetails = JSON.parse(JSON.stringify(estimate.totals.laborDetails));
+      const detail = newLaborDetails[index];
+
+      if (field === 'role') {
+          detail[field] = value;
+      } else {
+          const numericValue = parseFloat(value) || 0;
+          (detail as any)[field] = numericValue;
+      }
+
+      // Recalcula o totalCost para este item
+      detail.totalCost = detail.count * detail.costPerUnit;
+
+      const newTotals = recalculateTotals(estimate.menuItems, estimate.totals.otherCosts, newLaborDetails);
+      setEstimate({...estimate, totals: newTotals });
+  };
+
+  const handleAddLaborDetail = () => {
+      const newLaborDetails = [...(estimate.totals.laborDetails || []), {
+          role: 'Novo Profissional',
+          count: 1,
+          costPerUnit: 0,
+          totalCost: 0,
+      }];
+      const newTotals = recalculateTotals(estimate.menuItems, estimate.totals.otherCosts, newLaborDetails);
+      setEstimate({...estimate, totals: newTotals });
+  };
+
+  const handleRemoveLaborDetail = (index: number) => {
+      if (!estimate.totals.laborDetails) return;
+      const newLaborDetails = estimate.totals.laborDetails.filter((_, i) => i !== index);
+      const newTotals = recalculateTotals(estimate.menuItems, estimate.totals.otherCosts, newLaborDetails);
+      setEstimate({...estimate, totals: newTotals });
+  };
   
   const handleAddItem = (menuItemIndex: number) => {
       const newMenuItems = JSON.parse(JSON.stringify(estimate.menuItems));
@@ -258,7 +300,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
           }));
           
           // 3. Recalcula os totais financeiros com os novos ingredientes
-          const newTotals = recalculateTotals(updatedMenuItems, prevEst.totals.otherCosts);
+          const newTotals = recalculateTotals(updatedMenuItems, prevEst.totals.otherCosts, prevEst.totals.laborDetails);
           
           return {
               ...prevEst,
@@ -559,13 +601,50 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                       </div>
                     </div>
                     {isLaborExpanded && estimate.totals.laborDetails && (
-                        <div className="pl-4 mt-2 space-y-1 border-l-2 border-slate-200">
+                        <div className="pl-4 mt-2 space-y-2 border-l-2 border-slate-200">
                           {estimate.totals.laborDetails.map((detail, index) => (
-                              <div key={index} className="flex justify-between text-xs">
-                                  <span className="text-slate-500">{detail.count}x {detail.role}</span>
-                                  <span className="font-mono">{formatCurrency(detail.totalCost)}</span>
+                              <div key={index} className="flex items-center justify-between group py-1">
+                                  {/* Role Input */}
+                                  <input 
+                                      type="text"
+                                      value={detail.role}
+                                      onChange={(e) => handleLaborDetailChange(index, 'role', e.target.value)}
+                                      className="text-slate-700 bg-transparent p-1 rounded border border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 w-2/5 text-sm"
+                                  />
+                                  
+                                  <div className="flex items-center space-x-1">
+                                      {/* Count Input */}
+                                      <input 
+                                          type="number"
+                                          value={detail.count}
+                                          onChange={(e) => handleLaborDetailChange(index, 'count', e.target.value)}
+                                          className="w-12 bg-transparent p-1 rounded border border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 text-sm text-right"
+                                      />
+                                      <span className="text-slate-500">x</span>
+                                      
+                                      {/* Cost Per Unit Input */}
+                                      <span className="text-slate-500">R$</span>
+                                      <input 
+                                          type="number"
+                                          step="0.01"
+                                          value={detail.costPerUnit}
+                                          onChange={(e) => handleLaborDetailChange(index, 'costPerUnit', e.target.value)}
+                                          className="w-20 bg-transparent p-1 rounded border border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 text-sm text-right"
+                                      />
+                                  </div>
+                                  
+                                  {/* Total Cost Display */}
+                                  <span className="font-mono text-sm w-20 text-right">{formatCurrency(detail.totalCost)}</span>
+                                  
+                                  {/* Remove Button */}
+                                  <button onClick={() => handleRemoveLaborDetail(index)} className="ml-2 text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded">
+                                      <Trash2 className="w-3 h-3" />
+                                  </button>
                               </div>
                           ))}
+                          <button onClick={handleAddLaborDetail} className="mt-2 text-indigo-600 hover:text-indigo-800 text-xs font-semibold flex items-center p-1 -ml-1">
+                            <Plus className="w-3 h-3 mr-1" /> Adicionar Profissional
+                          </button>
                         </div>
                     )}
                     
