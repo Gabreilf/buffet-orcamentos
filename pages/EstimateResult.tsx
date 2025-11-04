@@ -11,6 +11,11 @@ const formatCurrency = (value: number) => {
   return (value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 };
 
+// Lista de unidades comuns para seleção
+const commonUnits = [
+    'kg', 'g', 'L', 'ml', 'unidade', 'caixa', 'pacote', 'lata', 'litro', 'fardo'
+];
+
 const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstimate }) => {
   const [estimate, setEstimate] = useState(initialEstimate);
   const [margin, setMargin] = useState(40);
@@ -81,7 +86,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
       newMenuItems[menuItemIndex].ingredients.push({
           name: 'Novo Item',
           qty: 1,
-          unit: 'unidade',
+          unit: 'unidade', // Default unit
           unitCost: 0,
           totalCost: 0,
       });
@@ -283,12 +288,17 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                                     />
                                   </td>
                                   <td className="p-2 whitespace-nowrap text-sm text-slate-500">
-                                    <input 
-                                      type="text" 
-                                      value={item.unit} 
-                                      onChange={(e) => handleItemChange(menuItemIndex, itemIndex, 'unit', e.target.value)} 
-                                      className="w-16 bg-transparent p-1 rounded border border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 text-sm"
-                                    />
+                                    <select
+                                      value={item.unit}
+                                      onChange={(e) => handleItemChange(menuItemIndex, itemIndex, 'unit', e.target.value)}
+                                      className="w-20 bg-white p-1 rounded border border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 text-sm"
+                                    >
+                                      {commonUnits.map(unit => (
+                                        <option key={unit} value={unit}>{unit}</option>
+                                      ))}
+                                      {/* Adiciona a unidade atual se ela não estiver na lista (para itens gerados pela IA) */}
+                                      {!commonUnits.includes(item.unit) && <option value={item.unit}>{item.unit}</option>}
+                                    </select>
                                   </td>
                                   <td className="p-2 whitespace-nowrap">
                                     <input 
