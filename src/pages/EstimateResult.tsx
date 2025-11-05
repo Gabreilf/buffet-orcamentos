@@ -386,6 +386,11 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
   const handleEventTypeChange = (value: string) => {
       setEstimate({ ...estimate, eventType: value });
   };
+  
+  // Handler para limpar a data do evento
+  const handleClearEventDate = () => {
+      handleEventDateChange('');
+  };
 
 
   const handleSaveEstimate = async () => {
@@ -532,13 +537,24 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
               {/* Campo de Edição da Data do Evento */}
               <div className="mt-2 flex items-center space-x-2 text-sm text-slate-500">
                   <span className="font-medium">Data do Evento:</span>
-                  <input
-                      type="text"
-                      value={estimate.eventDate || ''}
-                      onChange={(e) => handleEventDateChange(e.target.value)}
-                      placeholder="AAAA-MM-DD (Opcional)"
-                      className="bg-transparent p-1 rounded border border-slate-200 focus:border-indigo-500 text-sm w-32"
-                  />
+                  <div className="relative flex items-center">
+                      <input
+                          type="text"
+                          value={estimate.eventDate || ''}
+                          onChange={(e) => handleEventDateChange(e.target.value)}
+                          placeholder="AAAA-MM-DD (Opcional)"
+                          className="bg-transparent p-1 rounded border border-slate-200 focus:border-indigo-500 text-sm w-32 pr-6"
+                      />
+                      {estimate.eventDate && (
+                          <button
+                              onClick={handleClearEventDate}
+                              className="absolute right-0 top-0 bottom-0 px-1 text-slate-500 hover:text-red-500 transition"
+                              title="Limpar Data"
+                          >
+                              <i className="fas fa-times text-xs"></i>
+                          </button>
+                      )}
+                  </div>
               </div>
             </div>
             <div className="flex space-x-2">
