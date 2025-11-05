@@ -1,6 +1,6 @@
 import React from 'react';
 import { Logo } from '../constants';
-import { supabase } from '../src/integrations/supabase/client';
+import { supabase } from '../integrations/supabase/client';
 import toast from 'react-hot-toast';
 
 interface HeaderProps {
