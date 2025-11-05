@@ -376,6 +376,17 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
       });
   };
   // -----------------------------------------
+  
+  // Handler para edição da data do evento
+  const handleEventDateChange = (value: string) => {
+      setEstimate({ ...estimate, eventDate: value });
+  };
+  
+  // Handler para edição do tipo de evento
+  const handleEventTypeChange = (value: string) => {
+      setEstimate({ ...estimate, eventType: value });
+  };
+
 
   const handleSaveEstimate = async () => {
       setIsSaving(true);
@@ -507,7 +518,28 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
           <div className="flex justify-between items-start mb-6">
             <div>
               <h2 className="text-2xl font-bold text-slate-800">Detalhes do Orçamento</h2>
-              <p className="text-slate-500">{estimate.eventType} para {estimate.guests} convidados.</p>
+              <div className="flex items-center space-x-2 text-slate-500">
+                  {/* Campo de Edição do Tipo de Evento */}
+                  <input
+                      type="text"
+                      value={estimate.eventType}
+                      onChange={(e) => handleEventTypeChange(e.target.value)}
+                      className="text-xl font-bold text-slate-800 bg-transparent p-1 -ml-1 rounded border border-slate-200 focus:border-indigo-500"
+                  />
+                  <span className="text-lg font-normal">para {estimate.guests} convidados.</span>
+              </div>
+              
+              {/* Campo de Edição da Data do Evento */}
+              <div className="mt-2 flex items-center space-x-2 text-sm text-slate-500">
+                  <span className="font-medium">Data do Evento:</span>
+                  <input
+                      type="text"
+                      value={estimate.eventDate || ''}
+                      onChange={(e) => handleEventDateChange(e.target.value)}
+                      placeholder="AAAA-MM-DD (Opcional)"
+                      className="bg-transparent p-1 rounded border border-slate-200 focus:border-indigo-500 text-sm w-32"
+                  />
+              </div>
             </div>
             <div className="flex space-x-2">
                 {/* Undo/Redo Buttons */}
