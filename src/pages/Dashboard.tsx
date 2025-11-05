@@ -137,9 +137,10 @@ const Dashboard: React.FC<DashboardProps> = ({
                                         <label className="block text-xs font-medium text-slate-500 mb-1">Data do Evento</label>
                                         <div className="relative flex items-center">
                                             <input
-                                                type="date"
+                                                type="text" // Alterado para 'text' para permitir entrada livre
                                                 value={estimate.eventDate || ''}
                                                 onChange={(e) => handleEstimateFieldChange(estimate, 'eventDate', e.target.value)}
+                                                placeholder="AAAA-MM-DD"
                                                 className="w-full p-2 border border-slate-300 rounded-md text-sm text-slate-700 pr-8"
                                             />
                                             {estimate.eventDate && (
