@@ -30,13 +30,17 @@ interface StructuredPremise {
 // Função para converter string[] (do AI) para StructuredPremise[]
 const parsePremises = (averages: string[]): StructuredPremise[] => {
     return averages.map((avg, index) => {
-        // Regex para capturar Item, Quantidade e Unidade (ex: "Carne: 550g por pessoa")
-        const match = avg.match(/(.+):\s*(\d+\.?\d*)\s*([a-zA-Z]+)\s*por pessoa/i);
+        // Regex melhorada para capturar Item, Quantidade (incluindo vírgulas ou pontos) e Unidade (ex: "Carne: 550g por pessoa" ou "Água: 1.5L/pessoa")
+        // Captura: (Item): (Quantidade) (Unidade) (por pessoa ou /pessoa)
+        const match = avg.match(/(.+):\s*(\d+[\.,]?\d*)\s*([a-zA-Z]+)\s*(?:por pessoa|\/pessoa)/i);
+        
         if (match) {
+            // Substitui vírgula por ponto para garantir que parseFloat funcione
+            const quantityStr = match[2].replace(',', '.');
             return {
                 id: `premise-${index}-${Date.now()}`,
                 item: match[1].trim(),
-                quantity: parseFloat(match[2]),
+                quantity: parseFloat(quantityStr), 
                 unit: match[3].trim(),
             };
         }
@@ -49,7 +53,9 @@ const parsePremises = (averages: string[]): StructuredPremise[] => {
 const serializePremises = (structured: StructuredPremise[]): string[] => {
     return structured.map(p => {
         if (p.quantity > 0 && p.unit) {
-            return `${p.item}: ${p.quantity}${p.unit} por pessoa`;
+            // Usa ponto como separador decimal para consistência com o formato de IA
+            const quantityFormatted = p.quantity.toFixed(2).replace(/\.?0+$/, ''); // Remove zeros finais
+            return `${p.item}: ${quantityFormatted}${p.unit} por pessoa`;
         }
         return p.item;
     }).filter(s => s.trim() !== '');
@@ -452,7 +458,10 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                                   className="w-20 bg-white p-2 rounded border border-indigo-300 focus:border-indigo-500 text-sm text-slate-700 text-right"
                               />
                           ) : (
-                              <span className="w-20 p-2 text-sm text-slate-700 text-right font-medium">{p.quantity}</span>
+                              // Formatação para exibir o número com precisão, mas sem zeros desnecessários
+                              <span className="w-20 p-2 text-sm text-slate-700 text-right font-medium">
+                                  {p.quantity.toFixed(2).replace(/\.?0+$/, '')}
+                              </span>
                           )}
                           
                           {isPremiseEditing ? (
