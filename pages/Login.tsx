@@ -23,7 +23,7 @@ const Login: React.FC = () => {
             },
           }}
           theme="light"
-          view="sign_in"
+          // Removendo 'view="sign_in"' para permitir que o usuário navegue para 'sign_up'
           localization={{
             variables: {
               sign_in: {
