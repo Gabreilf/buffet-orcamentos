@@ -97,6 +97,10 @@ const Dashboard: React.FC<DashboardProps> = ({
         }
     };
 
+    const handleClearDate = (estimate: Estimate) => {
+        handleEstimateFieldChange(estimate, 'eventDate', '');
+    };
+
 
   return (
     <div className="container mx-auto">
@@ -131,12 +135,23 @@ const Dashboard: React.FC<DashboardProps> = ({
                                 <div className="grid grid-cols-2 gap-4 mb-4 border-t pt-3 border-slate-100">
                                     <div>
                                         <label className="block text-xs font-medium text-slate-500 mb-1">Data do Evento</label>
-                                        <input
-                                            type="date"
-                                            value={estimate.eventDate || ''}
-                                            onChange={(e) => handleEstimateFieldChange(estimate, 'eventDate', e.target.value)}
-                                            className="w-full p-2 border border-slate-300 rounded-md text-sm text-slate-700"
-                                        />
+                                        <div className="relative flex items-center">
+                                            <input
+                                                type="date"
+                                                value={estimate.eventDate || ''}
+                                                onChange={(e) => handleEstimateFieldChange(estimate, 'eventDate', e.target.value)}
+                                                className="w-full p-2 border border-slate-300 rounded-md text-sm text-slate-700 pr-8"
+                                            />
+                                            {estimate.eventDate && (
+                                                <button
+                                                    onClick={() => handleClearDate(estimate)}
+                                                    className="absolute right-0 top-0 bottom-0 px-2 text-slate-500 hover:text-red-500 transition"
+                                                    title="Limpar Data"
+                                                >
+                                                    <i className="fas fa-times text-xs"></i>
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
                                     <div>
                                         <label className="block text-xs font-medium text-slate-500 mb-1">Status da Entrega</label>
