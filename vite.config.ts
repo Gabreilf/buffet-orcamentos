@@ -11,8 +11,11 @@ export default defineConfig(({ mode }) => {
       },
       plugins: [react()],
       define: {
+        // Injeta a chave da API Gemini como process.env.API_KEY para compatibilidade com o serviço
         'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-        'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
+        // Injeta as chaves Supabase para o cliente (se não estiverem no .env.local, use as da Vercel)
+        'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(env.VITE_SUPABASE_URL),
+        'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(env.VITE_SUPABASE_ANON_KEY),
       },
       resolve: {
         alias: {
