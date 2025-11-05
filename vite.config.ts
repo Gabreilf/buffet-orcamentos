@@ -5,6 +5,8 @@ import react from '@vitejs/plugin-react';
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
     return {
+      // Define a base path para a raiz do domínio, padrão para Vercel
+      base: '/', 
       server: {
         port: 3000,
         host: '0.0.0.0',
