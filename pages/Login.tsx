@@ -11,6 +11,8 @@ const Login: React.FC = () => {
         <Auth
           supabaseClient={supabase}
           providers={[]} // Desabilitando provedores sociais por enquanto
+          // Adicionando a propriedade onlyThirdPartyProviders={false} para garantir que o email/senha seja a opção principal
+          onlyThirdPartyProviders={false} 
           appearance={{
             theme: ThemeSupa,
             variables: {
@@ -23,7 +25,6 @@ const Login: React.FC = () => {
             },
           }}
           theme="light"
-          // Removendo 'view="sign_in"' para permitir que o usuário navegue para 'sign_up'
           localization={{
             variables: {
               sign_in: {
