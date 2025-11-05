@@ -180,7 +180,8 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
       }
 
       const newTotals = recalculateTotals(newMenuItems, estimate.totals.otherCosts || []);
-      setEstimate({...estimate, menuItems: newMenuItems, totals: newTotals });
+      // Atualiza o estado sem adicionar ao histórico (addToHistory: false)
+      setEstimate({...estimate, menuItems: newMenuItems, totals: newTotals }, false);
   }
   
   const handleLaborDetailChange = (index: number, field: keyof LaborDetail, value: string) => {
@@ -202,7 +203,8 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
       detail.totalCost = detail.count * detail.costPerUnit;
 
       const newTotals = recalculateTotals(estimate.menuItems, estimate.totals.otherCosts || [], newLaborDetails);
-      setEstimate({...estimate, totals: newTotals });
+      // Atualiza o estado sem adicionar ao histórico (addToHistory: false)
+      setEstimate({...estimate, totals: newTotals }, false);
   };
 
   const handleAddLaborDetail = () => {
@@ -213,6 +215,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
           totalCost: 0,
       }];
       const newTotals = recalculateTotals(estimate.menuItems, estimate.totals.otherCosts || [], newLaborDetails);
+      // Adiciona ao histórico (padrão: true)
       setEstimate({...estimate, totals: newTotals });
   };
 
@@ -222,6 +225,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
       
       const newLaborDetails = currentLaborDetails.filter((_, i) => i !== index);
       const newTotals = recalculateTotals(estimate.menuItems, estimate.totals.otherCosts || [], newLaborDetails);
+      // Adiciona ao histórico (padrão: true)
       setEstimate({...estimate, totals: newTotals });
   };
   
@@ -235,6 +239,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
           totalCost: 0,
       });
       const newTotals = recalculateTotals(newMenuItems, estimate.totals.otherCosts || []);
+      // Adiciona ao histórico (padrão: true)
       setEstimate({...estimate, menuItems: newMenuItems, totals: newTotals });
   };
   
@@ -242,6 +247,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
       const newMenuItems = JSON.parse(JSON.stringify(estimate.menuItems));
       newMenuItems[menuItemIndex].ingredients.splice(itemIndex, 1);
       const newTotals = recalculateTotals(newMenuItems, estimate.totals.otherCosts || []);
+      // Adiciona ao histórico (padrão: true)
       setEstimate({...estimate, menuItems: newMenuItems, totals: newTotals });
   };
   
@@ -257,13 +263,15 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
       }
       
       const newTotals = recalculateTotals(estimate.menuItems, newOtherCosts);
-      setEstimate({...estimate, totals: newTotals });
+      // Atualiza o estado sem adicionar ao histórico (addToHistory: false)
+      setEstimate({...estimate, totals: newTotals }, false);
   };
   
   const handleAddOtherCost = () => {
       const newOtherCosts = JSON.parse(JSON.stringify(estimate.totals.otherCosts || []));
       newOtherCosts.push({ name: 'Novo Custo', cost: 0 });
       const newTotals = recalculateTotals(estimate.menuItems, newOtherCosts);
+      // Adiciona ao histórico (padrão: true)
       setEstimate({...estimate, totals: newTotals });
   };
   
@@ -272,6 +280,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
       const newOtherCosts = JSON.parse(JSON.stringify(currentOtherCosts));
       newOtherCosts.splice(index, 1);
       const newTotals = recalculateTotals(estimate.menuItems, newOtherCosts);
+      // Adiciona ao histórico (padrão: true)
       setEstimate({...estimate, totals: newTotals });
   };
 
@@ -290,6 +299,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
           const newMenuItems = [...estimate.menuItems, newMenuItem];
           const newTotals = recalculateTotals(newMenuItems, estimate.totals.otherCosts || []);
           
+          // Adiciona ao histórico (padrão: true)
           setEstimate({
               ...estimate,
               menuItems: newMenuItems,
@@ -367,13 +377,14 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
               menuItems: updatedMenuItems,
               totals: newTotals,
           };
-      });
+      }, false); // Não adiciona ao histórico a cada mudança de premissa
   };
 
   const handleSavePremises = () => {
       // A lógica de atualização do estimate já está em handleStructuredPremiseChange
-      // Aqui apenas desativamos o modo de edição.
+      // Aqui apenas desativamos o modo de edição e adicionamos o estado final ao histórico.
       setIsPremiseEditing(false);
+      setEstimate(estimate, true); // Força a adição do estado atual ao histórico
   };
 
   const handleAddStructuredPremise = () => {
@@ -386,6 +397,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
       
       setStructuredAverages(prev => {
           const newAverages = [...prev, newPremise];
+          // Adiciona ao histórico (padrão: true)
           setEstimate({
               ...estimate,
               consumptionAverages: serializePremises(newAverages),
@@ -397,6 +409,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
   const handleRemoveStructuredPremise = (id: string) => {
       setStructuredAverages(prev => {
           const newAverages = prev.filter(p => p.id !== id);
+          // Adiciona ao histórico (padrão: true)
           setEstimate({
               ...estimate,
               consumptionAverages: serializePremises(newAverages),
@@ -408,7 +421,8 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
   
   // Handler para edição do tipo de evento
   const handleEventTypeChange = (value: string) => {
-      setEstimate({ ...estimate, eventType: value });
+      // Atualiza o estado sem adicionar ao histórico (addToHistory: false)
+      setEstimate({ ...estimate, eventType: value }, false);
   };
   
   // --- Handlers para as partes da data ---
@@ -437,7 +451,8 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
           
           // Atualiza o estimate apenas se a string final for válida ou vazia
           if (newDateString !== (estimate.eventDate || '')) {
-              setEstimate({ ...estimate, eventDate: newDateString });
+              // Atualiza o estado sem adicionar ao histórico (addToHistory: false)
+              setEstimate({ ...estimate, eventDate: newDateString }, false);
           }
           
           return newParts;
@@ -447,6 +462,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
   // Handler para limpar a data do evento
   const handleClearEventDate = () => {
       setDateParts({ day: '', month: '', year: '' });
+      // Adiciona ao histórico (padrão: true)
       setEstimate({ ...estimate, eventDate: '' });
   };
 
@@ -475,6 +491,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
           }
           
           // To ensure the local state reflects the saved data immediately:
+          // Adiciona ao histórico (padrão: true)
           setEstimate(savedEstimate);
           
           onEstimateSaved(); // Notify App.tsx to reload the list
@@ -639,6 +656,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                               type="text"
                               value={detail.role}
                               onChange={(e) => handleLaborDetailChange(index, 'role', e.target.value)}
+                              onBlur={() => setEstimate(estimate, true)} // Adiciona ao histórico ao perder o foco
                               placeholder="Função"
                               className={`text-slate-700 bg-transparent p-1 rounded border ${isExporting ? 'border-transparent' : 'border-slate-300 focus:border-indigo-500 focus:ring-indigo-500'} w-2/5 text-sm`}
                               readOnly={isExporting}
@@ -650,6 +668,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                                   type="number"
                                   value={detail.count}
                                   onChange={(e) => handleLaborDetailChange(index, 'count', e.target.value)}
+                                  onBlur={() => setEstimate(estimate, true)} // Adiciona ao histórico ao perder o foco
                                   className={`w-12 bg-transparent p-1 rounded border ${isExporting ? 'border-transparent' : 'border-slate-300 focus:border-indigo-500 focus:ring-indigo-500'} text-sm text-right`}
                                   readOnly={isExporting}
                               />
@@ -662,6 +681,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                                   step="0.01"
                                   value={detail.costPerUnit}
                                   onChange={(e) => handleLaborDetailChange(index, 'costPerUnit', e.target.value)}
+                                  onBlur={() => setEstimate(estimate, true)} // Adiciona ao histórico ao perder o foco
                                   className={`w-20 bg-transparent p-1 rounded border ${isExporting ? 'border-transparent' : 'border-slate-300 focus:border-indigo-500 focus:ring-indigo-500'} text-sm text-right`}
                                   readOnly={isExporting}
                               />
@@ -695,6 +715,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                           type="text"
                           value={cost.name}
                           onChange={(e) => handleOtherCostChange(index, 'name', e.target.value)}
+                          onBlur={() => setEstimate(estimate, true)} // Adiciona ao histórico ao perder o foco
                           placeholder="Nome do Custo"
                           className={`text-slate-500 bg-transparent p-1 rounded border ${isExporting ? 'border-transparent' : 'border-slate-300 focus:border-indigo-500 focus:ring-indigo-500'} w-3/5 text-sm`}
                           readOnly={isExporting}
@@ -706,6 +727,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                               step="0.01"
                               value={cost.cost}
                               onChange={(e) => handleOtherCostChange(index, 'cost', e.target.value)}
+                              onBlur={() => setEstimate(estimate, true)} // Adiciona ao histórico ao perder o foco
                               className={`font-medium bg-transparent p-1 rounded border ${isExporting ? 'border-transparent' : 'border-slate-300 focus:border-indigo-500 focus:ring-indigo-500'} w-24 text-right text-sm`}
                               readOnly={isExporting}
                           />
@@ -794,6 +816,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                               type="text"
                               value={estimate.eventType}
                               onChange={(e) => handleEventTypeChange(e.target.value)}
+                              onBlur={() => setEstimate(estimate, true)} // Adiciona ao histórico ao perder o foco
                               className="text-xl font-bold text-slate-800 bg-transparent p-1 -ml-1 rounded border border-slate-200 focus:border-indigo-500"
                           />
                           <span className="text-lg font-normal">para {estimate.guests} convidados.</span>
@@ -810,6 +833,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                                   pattern="[0-9]*"
                                   value={dateParts.day}
                                   onChange={(e) => handleDatePartChange('day', e.target.value)}
+                                  onBlur={() => setEstimate(estimate, true)} // Adiciona ao histórico ao perder o foco
                                   placeholder="DD"
                                   maxLength={2}
                                   className="w-10 bg-transparent p-1 rounded border border-slate-200 focus:border-indigo-500 text-sm text-center"
@@ -822,6 +846,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                                   pattern="[0-9]*"
                                   value={dateParts.month}
                                   onChange={(e) => handleDatePartChange('month', e.target.value)}
+                                  onBlur={() => setEstimate(estimate, true)} // Adiciona ao histórico ao perder o foco
                                   placeholder="MM"
                                   maxLength={2}
                                   className="w-10 bg-transparent p-1 rounded border border-slate-200 focus:border-indigo-500 text-sm text-center"
@@ -834,6 +859,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                                   pattern="[0-9]*"
                                   value={dateParts.year}
                                   onChange={(e) => handleDatePartChange('year', e.target.value)}
+                                  onBlur={() => setEstimate(estimate, true)} // Adiciona ao histórico ao perder o foco
                                   placeholder="AAAA"
                                   maxLength={4}
                                   className="w-16 bg-transparent p-1 rounded border border-slate-200 focus:border-indigo-500 text-sm text-center"
@@ -917,6 +943,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                                         type="text"
                                         value={p.item}
                                         onChange={(e) => handleStructuredPremiseChange(p.id, 'item', e.target.value)}
+                                        onBlur={() => setEstimate(estimate, true)} // Adiciona ao histórico ao perder o foco
                                         placeholder="Item (ex: Carne)"
                                         className={`flex-1 p-2 rounded border text-sm text-slate-700 ${isExporting ? 'bg-transparent border-transparent' : 'bg-white border-indigo-300 focus:border-indigo-500'}`}
                                         readOnly={isExporting}
@@ -930,6 +957,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                                         type="number"
                                         value={p.quantity}
                                         onChange={(e) => handleStructuredPremiseChange(p.id, 'quantity', e.target.value)}
+                                        onBlur={() => setEstimate(estimate, true)} // Adiciona ao histórico ao perder o foco
                                         placeholder="Qtde"
                                         className={`w-20 p-2 rounded border text-sm text-slate-700 text-right ${isExporting ? 'bg-transparent border-transparent' : 'bg-white border-indigo-300 focus:border-indigo-500'}`}
                                         readOnly={isExporting}
@@ -945,6 +973,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                                     <select
                                         value={p.unit}
                                         onChange={(e) => handleStructuredPremiseChange(p.id, 'unit', e.target.value)}
+                                        onBlur={() => setEstimate(estimate, true)} // Adiciona ao histórico ao perder o foco
                                         className={`w-20 p-2 rounded border text-sm text-slate-700 ${isExporting ? 'bg-transparent border-transparent appearance-none' : 'bg-white border-indigo-300 focus:border-indigo-500'}`}
                                         disabled={isExporting}
                                     >
@@ -1024,6 +1053,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                                               type="text" 
                                               value={item.name} 
                                               onChange={(e) => handleItemChange(menuItemIndex, itemIndex, 'name', e.target.value)} 
+                                              onBlur={() => setEstimate(estimate, true)} // Adiciona ao histórico ao perder o foco
                                               className={`w-full bg-transparent p-1 rounded border text-sm whitespace-normal ${isExporting ? 'border-transparent' : 'border-slate-300 focus:border-indigo-500 focus:ring-indigo-500'}`}
                                               readOnly={isExporting}
                                             />
@@ -1033,6 +1063,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                                               type="number" 
                                               value={item.qty} 
                                               onChange={(e) => handleItemChange(menuItemIndex, itemIndex, 'qty', e.target.value)} 
+                                              onBlur={() => setEstimate(estimate, true)} // Adiciona ao histórico ao perder o foco
                                               className={`w-20 bg-transparent p-1 rounded border text-sm text-right ${isExporting ? 'border-transparent' : 'border-slate-300 focus:border-indigo-500 focus:ring-indigo-500'}`}
                                               readOnly={isExporting}
                                             />
@@ -1041,6 +1072,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                                             <select
                                               value={item.unit}
                                               onChange={(e) => handleItemChange(menuItemIndex, itemIndex, 'unit', e.target.value)}
+                                              onBlur={() => setEstimate(estimate, true)} // Adiciona ao histórico ao perder o foco
                                               className={`w-20 p-1 rounded border text-sm ${isExporting ? 'bg-transparent border-transparent appearance-none' : 'bg-white border-slate-300 focus:border-indigo-500 focus:ring-indigo-500'}`}
                                               disabled={isExporting}
                                             >
@@ -1057,6 +1089,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                                               step="0.01" 
                                               value={item.unitCost} 
                                               onChange={(e) => handleItemChange(menuItemIndex, itemIndex, 'unitCost', e.target.value)} 
+                                              onBlur={() => setEstimate(estimate, true)} // Adiciona ao histórico ao perder o foco
                                               className={`w-24 bg-transparent p-1 rounded border text-sm text-right ${isExporting ? 'border-transparent' : 'border-slate-300 focus:border-indigo-500 focus:ring-indigo-500'}`}
                                               readOnly={isExporting}
                                             />

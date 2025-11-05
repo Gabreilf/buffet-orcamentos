@@ -7,7 +7,7 @@ interface UndoRedoState<T> {
 }
 
 interface UndoRedoActions<T> {
-  set: (newPresent: T) => void;
+  set: (newPresent: T, addToHistory?: boolean) => void;
   undo: () => void;
   redo: () => void;
   canUndo: boolean;
@@ -29,13 +29,21 @@ export const useUndoRedo = <T>(initialState: T): [T, UndoRedoActions<T>] => {
   const stateRef = useRef(state);
   stateRef.current = state;
 
-  const set = useCallback((newPresent: T) => {
+  const set = useCallback((newPresent: T, addToHistory: boolean = true) => {
     const currentState = stateRef.current;
     
     // Se o novo estado for idêntico ao atual, não faz nada
     if (newPresent === currentState.present) return;
 
     setState(prevState => {
+      if (!addToHistory) {
+        // Se não for para adicionar ao histórico, apenas atualiza o presente
+        return {
+          ...prevState,
+          present: newPresent,
+        };
+      }
+      
       const { past, present } = prevState;
       
       // Adiciona o estado atual ao histórico (past)
