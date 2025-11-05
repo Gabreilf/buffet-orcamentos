@@ -1,11 +1,12 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Estimate, EstimateItem, MenuItemDetail, OtherCost, LaborDetail } from '../types';
-import { ChevronDown, Trash2, Plus, FileText, Loader2, Pencil } from 'lucide-react';
+import { ChevronDown, Trash2, Plus, FileText, Loader2, Pencil, RotateCcw, RotateCw } from 'lucide-react';
 import { generateMenuItemDetails } from '../services/geminiService';
 import { saveNewEstimate, updateEstimate } from '../services/estimateService';
 import toast from 'react-hot-toast';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import { useUndoRedo } from '../hooks/useUndoRedo'; // Importando o novo hook
 
 interface EstimateResultProps {
   estimate: Estimate;
@@ -65,16 +66,19 @@ const serializePremises = (structured: StructuredPremise[]): string[] => {
 
 
 const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstimate, onEstimateSaved }) => {
-  const [estimate, setEstimate] = useState(initialEstimate);
+  // Substituindo useState por useUndoRedo
+  const [estimate, estimateActions] = useUndoRedo(initialEstimate);
+  const { set: setEstimate, undo, redo, canUndo, canRedo } = estimateActions;
+  
   const [margin, setMargin] = useState(40);
   const [isLaborExpanded, setIsLaborExpanded] = useState(false);
   const [isProductionExpanded, setIsProductionExpanded] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState<Record<number, boolean>>({});
-  const [isExporting, setIsExporting] = useState(false); // Estado para o botão de exportação
+  const [isExporting, setIsExporting] = useState(false); 
   
   // Estado estruturado para edição das premissas
   const [structuredAverages, setStructuredAverages] = useState<StructuredPremise[]>(() => parsePremises(initialEstimate.consumptionAverages || []));
-  const [isPremiseEditing, setIsPremiseEditing] = useState(false); // Novo estado de edição
+  const [isPremiseEditing, setIsPremiseEditing] = useState(false); 
 
   // Novo estado para adicionar receita
   const [isAddingRecipe, setIsAddingRecipe] = useState(false);
@@ -82,6 +86,11 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
   const [isRecipeLoading, setIsRecipeLoading] = useState(false);
   const [recipeError, setRecipeError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Sincroniza o estado estruturado das premissas quando o estimate muda (ex: após undo/redo)
+  useEffect(() => {
+      setStructuredAverages(parsePremises(estimate.consumptionAverages || []));
+  }, [estimate.consumptionAverages]);
 
 
   const toggleMenuExpansion = (index: number) => {
@@ -245,11 +254,11 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
           const newMenuItems = [...estimate.menuItems, newMenuItem];
           const newTotals = recalculateTotals(newMenuItems, estimate.totals.otherCosts);
           
-          setEstimate(prev => ({
-              ...prev,
+          setEstimate({
+              ...estimate,
               menuItems: newMenuItems,
               totals: newTotals,
-          }));
+          });
           
           // Expandir o novo item automaticamente
           setExpandedMenus(prev => ({
@@ -341,10 +350,10 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
       
       setStructuredAverages(prev => {
           const newAverages = [...prev, newPremise];
-          setEstimate(prevEst => ({
-              ...prevEst,
+          setEstimate({
+              ...estimate,
               consumptionAverages: serializePremises(newAverages),
-          }));
+          });
           return newAverages;
       });
   };
@@ -352,10 +361,10 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
   const handleRemoveStructuredPremise = (id: string) => {
       setStructuredAverages(prev => {
           const newAverages = prev.filter(p => p.id !== id);
-          setEstimate(prevEst => ({
-              ...prevEst,
+          setEstimate({
+              ...estimate,
               consumptionAverages: serializePremises(newAverages),
-          }));
+          });
           return newAverages;
       });
   };
@@ -385,7 +394,14 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
           }
           
           // Update local state with definitive IDs/timestamps from DB
+          // NOTE: We use the direct set function from useUndoRedo here, but we don't want this to be undoable.
+          // Since useUndoRedo doesn't expose a non-history set, we rely on the next render cycle to update the state.
+          // For simplicity, we'll let the next render cycle handle the state update via initialEstimate change if needed, 
+          // but for now, we rely on the parent component reloading the data.
+          
+          // To ensure the local state reflects the saved data immediately:
           setEstimate(savedEstimate);
+          
           onEstimateSaved(); // Notify App.tsx to reload the list
           
       } catch (e: any) {
@@ -451,24 +467,45 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
     <div className="container mx-auto">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-lg" id="estimate-content"> {/* Adicionado ID aqui */}
+        <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-lg" id="estimate-content">
           <div className="flex justify-between items-start mb-6">
             <div>
               <h2 className="text-2xl font-bold text-slate-800">Detalhes do Orçamento</h2>
               <p className="text-slate-500">{estimate.eventType} para {estimate.guests} convidados.</p>
             </div>
-            <button 
-                onClick={handleExportPDF}
-                disabled={isExporting}
-                className="bg-slate-100 text-slate-700 font-bold py-2 px-4 rounded-lg hover:bg-slate-200 transition flex items-center disabled:opacity-60"
-            >
-              {isExporting ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                  <FileText className="w-4 h-4 mr-2 text-red-500" />
-              )}
-              {isExporting ? 'Exportando...' : 'Exportar PDF'}
-            </button>
+            <div className="flex space-x-2">
+                {/* Undo/Redo Buttons */}
+                <button
+                    onClick={undo}
+                    disabled={!canUndo}
+                    className={`p-2 rounded-lg transition ${canUndo ? 'bg-slate-100 text-slate-700 hover:bg-slate-200' : 'bg-slate-50 text-slate-400 cursor-not-allowed'}`}
+                    title="Desfazer (Ctrl+Z)"
+                >
+                    <RotateCcw className="w-5 h-5" />
+                </button>
+                <button
+                    onClick={redo}
+                    disabled={!canRedo}
+                    className={`p-2 rounded-lg transition ${canRedo ? 'bg-slate-100 text-slate-700 hover:bg-slate-200' : 'bg-slate-50 text-slate-400 cursor-not-allowed'}`}
+                    title="Refazer (Ctrl+Y)"
+                >
+                    <RotateCw className="w-5 h-5" />
+                </button>
+                
+                {/* Export PDF Button */}
+                <button 
+                    onClick={handleExportPDF}
+                    disabled={isExporting}
+                    className="bg-slate-100 text-slate-700 font-bold py-2 px-4 rounded-lg hover:bg-slate-200 transition flex items-center disabled:opacity-60"
+                >
+                  {isExporting ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                      <FileText className="w-4 h-4 mr-2 text-red-500" />
+                  )}
+                  {isExporting ? 'Exportando...' : 'Exportar PDF'}
+                </button>
+            </div>
           </div>
           
           {/* Editable Consumption Averages Section (Structured) */}
@@ -616,7 +653,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                                         <option key={unit} value={unit}>{unit}</option>
                                       ))}
                                       {/* Adiciona a unidade atual se ela não estiver na lista (para itens gerados pela IA) */}
-                                      {!commonUnits.includes(item.unit) && <option value={item.unit}>{item.unit}</option>}
+                                      {!commonUnits.includes(item.unit) && item.unit && <option value={item.unit}>{item.unit}</option>}
                                     </select>
                                   </td>
                                   <td className="p-2 whitespace-nowrap">
