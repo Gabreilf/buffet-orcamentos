@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Estimate, CustomCost } from './types';
 import Dashboard from './pages/Dashboard';
 import NewEstimate from './pages/NewEstimate';
@@ -24,7 +24,7 @@ const App: React.FC = () => {
   ]);
 
   // Função para carregar orçamentos
-  const loadEstimates = async () => {
+  const loadEstimates = useCallback(async () => {
     // Só carrega se estiver autenticado
     if (!session) {
         setEstimates([]);
@@ -42,6 +42,19 @@ const App: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
+  }, [session]);
+
+  // Função para atualizar um único orçamento na lista
+  const handleEstimateUpdated = (updatedEstimate: Estimate) => {
+      setEstimates(prevEstimates => 
+          prevEstimates.map(e => 
+              e.estimateId === updatedEstimate.estimateId ? updatedEstimate : e
+          )
+      );
+      // Se o orçamento ativo for o que foi atualizado, atualize-o também
+      if (activeEstimate && activeEstimate.estimateId === updatedEstimate.estimateId) {
+          setActiveEstimate(updatedEstimate);
+      }
   };
 
   // Recarrega orçamentos quando a sessão muda (login/logout)
@@ -53,7 +66,7 @@ const App: React.FC = () => {
         setEstimates([]);
         setIsLoading(false);
     }
-  }, [session, isAuthLoading]);
+  }, [session, isAuthLoading, loadEstimates]);
 
   const handleCreateNewEstimate = () => {
     setActiveEstimate(null);
@@ -103,10 +116,10 @@ const App: React.FC = () => {
         return <NewEstimate onEstimateGenerated={handleEstimateGenerated} customCosts={customCosts} />;
       case 'estimate_result':
         // Usamos a key para forçar a remontagem do componente EstimateResult sempre que o orçamento ativo mudar.
-        return activeEstimate ? <EstimateResult key={activeEstimate.estimateId} estimate={activeEstimate} onEstimateSaved={loadEstimates} /> : <Dashboard estimates={estimates} onCreateNew={handleCreateNewEstimate} onView={handleViewEstimate} customCosts={customCosts} onCustomCostsChange={setCustomCosts} />;
+        return activeEstimate ? <EstimateResult key={activeEstimate.estimateId} estimate={activeEstimate} onEstimateSaved={loadEstimates} /> : <Dashboard estimates={estimates} onCreateNew={handleCreateNewEstimate} onView={handleViewEstimate} customCosts={customCosts} onCustomCostsChange={setCustomCosts} onEstimateUpdated={handleEstimateUpdated} />;
       case 'dashboard':
       default:
-        return <Dashboard estimates={estimates} onCreateNew={handleCreateNewEstimate} onView={handleViewEstimate} customCosts={customCosts} onCustomCostsChange={setCustomCosts} />;
+        return <Dashboard estimates={estimates} onCreateNew={handleCreateNewEstimate} onView={handleViewEstimate} customCosts={customCosts} onCustomCostsChange={setCustomCosts} onEstimateUpdated={handleEstimateUpdated} />;
     }
   };
 

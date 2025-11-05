@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { Estimate, CustomCost } from '../types';
+import { updateEstimate } from '../services/estimateService';
+import toast from 'react-hot-toast';
 
 interface DashboardProps {
   estimates: Estimate[];
@@ -7,18 +9,25 @@ interface DashboardProps {
   onCreateNew: () => void;
   onView: (estimate: Estimate) => void;
   onCustomCostsChange: (costs: CustomCost[]) => void;
+  onEstimateUpdated: (updatedEstimate: Estimate) => void; // Novo prop para atualizar a lista no App.tsx
 }
 
 const formatCurrency = (value: number) => {
     return (value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 };
 
-const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pt-BR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-    });
+const formatDate = (dateString: string | undefined) => {
+    if (!dateString) return 'N/A';
+    // Se for uma string ISO completa, usa toLocaleDateString. Se for YYYY-MM-DD, funciona diretamente.
+    try {
+        return new Date(dateString).toLocaleDateString('pt-BR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+        });
+    } catch {
+        return dateString;
+    }
 };
 
 const statusMap: { [key in Estimate['status']]: { text: string; className: string } } = {
@@ -28,12 +37,20 @@ const statusMap: { [key in Estimate['status']]: { text: string; className: strin
     rejected: { text: 'Rejeitado', className: 'bg-red-200 text-red-700' },
 };
 
+const deliveryStatusOptions: { value: Estimate['deliveryStatus']; text: string; className: string }[] = [
+    { value: 'pending', text: 'Pendente', className: 'bg-yellow-100 text-yellow-700 border-yellow-300' },
+    { value: 'sent', text: 'Enviado', className: 'bg-blue-100 text-blue-700 border-blue-300' },
+    { value: 'delivered', text: 'Entregue', className: 'bg-green-100 text-green-700 border-green-300' },
+    { value: 'cancelled', text: 'Cancelado', className: 'bg-red-100 text-red-700 border-red-300' },
+];
+
 const Dashboard: React.FC<DashboardProps> = ({
   estimates,
   customCosts,
   onCreateNew,
   onView,
   onCustomCostsChange,
+  onEstimateUpdated,
 }) => {
     const [editableCustomCosts, setEditableCustomCosts] = useState<CustomCost[]>(JSON.parse(JSON.stringify(customCosts)));
 
@@ -49,6 +66,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     
     const handleSaveChanges = () => {
         onCustomCostsChange(editableCustomCosts);
+        toast.success('Custos personalizados salvos!');
     };
 
     const handleAddCustomCost = () => {
@@ -59,6 +77,24 @@ const Dashboard: React.FC<DashboardProps> = ({
         const newCosts = editableCustomCosts.filter((_, i) => i !== index);
         setEditableCustomCosts(newCosts);
         onCustomCostsChange(newCosts);
+    };
+    
+    const handleEstimateFieldChange = async (estimate: Estimate, field: 'eventDate' | 'deliveryStatus', value: string) => {
+        const updatedEstimate: Estimate = {
+            ...estimate,
+            [field]: value,
+        };
+        
+        const toastId = toast.loading('Atualizando orçamento...');
+        
+        try {
+            const savedEstimate = await updateEstimate(updatedEstimate);
+            onEstimateUpdated(savedEstimate); // Atualiza o estado no App.tsx
+            toast.success('Orçamento atualizado!', { id: toastId });
+        } catch (error: any) {
+            console.error("Update error:", error);
+            toast.error(error.message || 'Falha ao atualizar o orçamento.', { id: toastId });
+        }
     };
 
 
@@ -81,16 +117,42 @@ const Dashboard: React.FC<DashboardProps> = ({
                     <div className="space-y-4">
                         {estimates.map((estimate) => (
                             <div key={estimate.estimateId} className="bg-white p-4 rounded-lg shadow-md hover:shadow-lg transition-shadow border border-slate-200">
-                                <div className="flex justify-between items-start">
+                                <div className="flex justify-between items-start mb-3">
                                     <div>
                                         <p className="font-bold text-lg text-slate-800">{estimate.eventType}</p>
-                                        <p className="text-sm text-slate-500">{estimate.guests} convidados &bull; {formatDate(estimate.createdAt)}</p>
+                                        <p className="text-sm text-slate-500">{estimate.guests} convidados &bull; Criado em: {formatDate(estimate.createdAt)}</p>
                                     </div>
                                     <span className={`px-2 py-1 text-xs font-semibold rounded-full ${statusMap[estimate.status].className}`}>
                                         {statusMap[estimate.status].text}
                                     </span>
                                 </div>
-                                <div className="mt-4 flex justify-between items-center">
+                                
+                                {/* Novos Campos Editáveis */}
+                                <div className="grid grid-cols-2 gap-4 mb-4 border-t pt-3 border-slate-100">
+                                    <div>
+                                        <label className="block text-xs font-medium text-slate-500 mb-1">Data do Evento</label>
+                                        <input
+                                            type="date"
+                                            value={estimate.eventDate || ''}
+                                            onChange={(e) => handleEstimateFieldChange(estimate, 'eventDate', e.target.value)}
+                                            className="w-full p-2 border border-slate-300 rounded-md text-sm text-slate-700"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-slate-500 mb-1">Status da Entrega</label>
+                                        <select
+                                            value={estimate.deliveryStatus}
+                                            onChange={(e) => handleEstimateFieldChange(estimate, 'deliveryStatus', e.target.value as Estimate['deliveryStatus'])}
+                                            className={`w-full p-2 border rounded-md text-sm font-medium ${deliveryStatusOptions.find(opt => opt.value === estimate.deliveryStatus)?.className || 'bg-slate-100 text-slate-700 border-slate-300'}`}
+                                        >
+                                            {deliveryStatusOptions.map(opt => (
+                                                <option key={opt.value} value={opt.value}>{opt.text}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <div className="mt-4 flex justify-between items-center border-t pt-3 border-slate-100">
                                     <p className="text-lg font-bold text-indigo-600">{formatCurrency(estimate.totals.suggestedPrice)}</p>
                                     <button
                                         onClick={() => onView(estimate)}

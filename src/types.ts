@@ -53,4 +53,7 @@ export interface Estimate {
   createdAt: string;
   status: 'draft' | 'sent' | 'approved' | 'rejected';
   consumptionAverages?: string[];
+  // Novos campos
+  eventDate?: string; // Data do evento (ISO string ou YYYY-MM-DD)
+  deliveryStatus: 'pending' | 'sent' | 'delivered' | 'cancelled'; // Status da entrega/envio
 }

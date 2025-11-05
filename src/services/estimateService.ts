@@ -7,7 +7,7 @@ import { Estimate } from '../types';
 export async function fetchEstimates(): Promise<Estimate[]> {
   const { data, error } = await supabase
     .from('estimates')
-    .select('*')
+    .select('id, user_id, created_at, event_type, guests, status, menu_items, totals, consumption_averages, event_date, delivery_status')
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -15,9 +15,20 @@ export async function fetchEstimates(): Promise<Estimate[]> {
     throw new Error('Failed to load estimates.');
   }
 
-  // The data structure from Supabase matches the Estimate type, 
-  // but we need to ensure the user_id is present for RLS checks.
-  return data as Estimate[];
+  // Mapeia a resposta do DB para o tipo Estimate
+  return data.map(item => ({
+    estimateId: item.id,
+    tenantId: 'buffet-xyz', // Placeholder
+    createdAt: item.created_at,
+    eventType: item.event_type,
+    guests: item.guests,
+    status: item.status,
+    menuItems: item.menu_items,
+    totals: item.totals,
+    consumptionAverages: item.consumption_averages,
+    eventDate: item.event_date, // Novo campo
+    deliveryStatus: item.delivery_status, // Novo campo
+  })) as Estimate[];
 }
 
 /**
@@ -41,12 +52,14 @@ export async function saveNewEstimate(estimate: Omit<Estimate, 'estimateId' | 't
     menu_items: estimate.menuItems, // JSONB column
     totals: estimate.totals, // JSONB column
     consumption_averages: estimate.consumptionAverages, // JSONB column
+    event_date: estimate.eventDate, // Novo campo
+    delivery_status: estimate.deliveryStatus, // Novo campo
   };
 
   const { data, error } = await supabase
     .from('estimates')
     .insert(insertData)
-    .select()
+    .select('id, created_at, event_type, guests, status, menu_items, totals, consumption_averages, event_date, delivery_status')
     .single();
 
   if (error) {
@@ -66,6 +79,8 @@ export async function saveNewEstimate(estimate: Omit<Estimate, 'estimateId' | 't
     menuItems: data.menu_items,
     totals: data.totals,
     consumptionAverages: data.consumption_averages,
+    eventDate: data.event_date, // Novo campo
+    deliveryStatus: data.delivery_status, // Novo campo
   };
 
   return savedEstimate;
@@ -89,6 +104,8 @@ export async function updateEstimate(estimate: Estimate): Promise<Estimate> {
     menu_items: estimate.menuItems,
     totals: estimate.totals,
     consumption_averages: estimate.consumptionAverages,
+    event_date: estimate.eventDate, // Novo campo
+    delivery_status: estimate.deliveryStatus, // Novo campo
     // user_id não é atualizado, mas a RLS garante que apenas o dono possa atualizar
   };
 
@@ -96,7 +113,7 @@ export async function updateEstimate(estimate: Estimate): Promise<Estimate> {
     .from('estimates')
     .update(updateData)
     .eq('id', estimate.estimateId)
-    .select()
+    .select('id, created_at, event_type, guests, status, menu_items, totals, consumption_averages, event_date, delivery_status')
     .single();
 
   if (error) {
@@ -115,6 +132,8 @@ export async function updateEstimate(estimate: Estimate): Promise<Estimate> {
     menuItems: data.menu_items,
     totals: data.totals,
     consumptionAverages: data.consumption_averages,
+    eventDate: data.event_date, // Novo campo
+    deliveryStatus: data.delivery_status, // Novo campo
   };
 
   return updatedEstimate;
