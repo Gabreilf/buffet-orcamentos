@@ -414,7 +414,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
           {/* Editable Consumption Averages Section (Structured) */}
           <div className="mb-6 p-4 bg-indigo-50 border border-indigo-200 rounded-lg relative">
               <div className="flex justify-between items-start mb-3">
-                  <h4 className="font-bold text-sm text-indigo-800">Premissas de Cálculo (por pessoa)</h4>
+                  <h4 className="font-bold text-sm text-indigo-800">Premissas de Consumo (por pessoa)</h4>
                   <button 
                       onClick={() => setIsPremiseEditing(prev => !prev)}
                       className={`p-1 rounded transition-colors ${isPremiseEditing ? 'bg-indigo-200 text-indigo-800' : 'text-indigo-600 hover:bg-indigo-100'}`}
@@ -518,8 +518,8 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                               <tr>
                                 <th className="px-2 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider w-2/5">Item</th>
                                 <th className="px-2 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Qtde.</th>
-                                <th className="px-2 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Un.</th>
-                                <th className="px-2 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Preço Unit. (R$)</th>
+                                <th className="px-2 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Unidade</th>
+                                <th className="px-2 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Custo Unit. (R$)</th>
                                 <th className="px-2 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Custo Total</th>
                                 <th className="px-2 py-2 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Ação</th>
                               </tr>
@@ -695,6 +695,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                                       type="text"
                                       value={detail.role}
                                       onChange={(e) => handleLaborDetailChange(index, 'role', e.target.value)}
+                                      placeholder="Função"
                                       className="text-slate-700 bg-transparent p-1 rounded border border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 w-2/5 text-sm"
                                   />
                                   
@@ -742,6 +743,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                                   type="text"
                                   value={cost.name}
                                   onChange={(e) => handleOtherCostChange(index, 'name', e.target.value)}
+                                  placeholder="Nome do Custo"
                                   className="text-slate-500 bg-transparent p-1 rounded border border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 w-3/5 text-sm"
                               />
                               <div className="flex items-center">
@@ -777,7 +779,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                 
                 <div className="mt-6">
                     <label htmlFor="margin-slider" className="block text-sm font-medium text-slate-700 mb-2">
-                        Simular Preço de Venda (Margem: <span className="font-bold text-indigo-600">{margin}%</span>)
+                        Simular Preço de Venda (Margem de Lucro: <span className="font-bold text-indigo-600">{margin}%</span>)
                     </label>
                     <input 
                         id="margin-slider"

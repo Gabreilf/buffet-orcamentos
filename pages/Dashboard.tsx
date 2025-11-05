@@ -65,7 +65,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   return (
     <div className="container mx-auto">
         <div className="flex justify-between items-center mb-6">
-            <h2 className="text-3xl font-bold text-slate-800">Dashboard</h2>
+            <h2 className="text-3xl font-bold text-slate-800">Painel de Controle</h2>
             <button
             onClick={onCreateNew}
             className="bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 transition duration-300 ease-in-out shadow-lg flex items-center"
