@@ -3,7 +3,9 @@ import { Estimate, EstimateItem, MenuItemDetail, OtherCost, LaborDetail } from '
 import { ChevronDown, Trash2, Plus, FileText, Loader2, Pencil } from 'lucide-react';
 import { generateMenuItemDetails } from '../services/geminiService';
 import { saveNewEstimate, updateEstimate } from '../services/estimateService';
-import toast from 'react-hot-toast'; // Assuming react-hot-toast is available or will be added
+import toast from 'react-hot-toast';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 
 interface EstimateResultProps {
   estimate: Estimate;
@@ -68,6 +70,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
   const [isLaborExpanded, setIsLaborExpanded] = useState(false);
   const [isProductionExpanded, setIsProductionExpanded] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState<Record<number, boolean>>({});
+  const [isExporting, setIsExporting] = useState(false); // Estado para o botão de exportação
   
   // Estado estruturado para edição das premissas
   const [structuredAverages, setStructuredAverages] = useState<StructuredPremise[]>(() => parsePremises(initialEstimate.consumptionAverages || []));
@@ -392,6 +395,49 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
           setIsSaving(false);
       }
   };
+  
+  const handleExportPDF = async () => {
+      setIsExporting(true);
+      const toastId = toast.loading('Gerando PDF...');
+      
+      const input = document.getElementById('estimate-content');
+      if (!input) {
+          toast.error('Conteúdo do orçamento não encontrado.', { id: toastId });
+          setIsExporting(false);
+          return;
+      }
+
+      try {
+          // 1. Captura o conteúdo HTML como uma imagem (canvas)
+          const canvas = await html2canvas(input, {
+              scale: 2, // Aumenta a escala para melhor qualidade
+              useCORS: true,
+              logging: false,
+          });
+
+          const imgData = canvas.toDataURL('image/png');
+          const pdf = new jsPDF('p', 'mm', 'a4'); // 'p' portrait, 'mm' units, 'a4' size
+          const imgProps = pdf.getImageProperties(imgData);
+          const pdfWidth = pdf.internal.pageSize.getWidth();
+          const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+          // 2. Adiciona a imagem ao PDF
+          pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+          
+          // 3. Salva o arquivo
+          const filename = `Orcamento_${estimate.eventType.replace(/\s/g, '_')}_${estimate.guests}_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.pdf`;
+          pdf.save(filename);
+          
+          toast.success('PDF gerado com sucesso!', { id: toastId });
+
+      } catch (error) {
+          console.error("PDF Export Error:", error);
+          toast.error('Falha ao gerar o PDF.', { id: toastId });
+      } finally {
+          setIsExporting(false);
+      }
+  };
+
 
   const updatedTotals = useMemo(() => {
     const totalCost = estimate.totals.totalCost;
@@ -405,15 +451,23 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
     <div className="container mx-auto">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-lg">
+        <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-lg" id="estimate-content"> {/* Adicionado ID aqui */}
           <div className="flex justify-between items-start mb-6">
             <div>
               <h2 className="text-2xl font-bold text-slate-800">Detalhes do Orçamento</h2>
               <p className="text-slate-500">{estimate.eventType} para {estimate.guests} convidados.</p>
             </div>
-            <button className="bg-slate-100 text-slate-700 font-bold py-2 px-4 rounded-lg hover:bg-slate-200 transition flex items-center">
-              <FileText className="w-4 h-4 mr-2 text-red-500" />
-              Exportar PDF
+            <button 
+                onClick={handleExportPDF}
+                disabled={isExporting}
+                className="bg-slate-100 text-slate-700 font-bold py-2 px-4 rounded-lg hover:bg-slate-200 transition flex items-center disabled:opacity-60"
+            >
+              {isExporting ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                  <FileText className="w-4 h-4 mr-2 text-red-500" />
+              )}
+              {isExporting ? 'Exportando...' : 'Exportar PDF'}
             </button>
           </div>
           
