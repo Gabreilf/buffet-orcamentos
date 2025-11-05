@@ -1,12 +1,11 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Estimate, EstimateItem, MenuItemDetail, OtherCost, LaborDetail } from '../types';
-import { ChevronDown, Trash2, Plus, FileText, Loader2, Pencil, RotateCcw, RotateCw } from 'lucide-react';
+import { ChevronDown, Trash2, Plus, FileText, Loader2, Pencil, RotateCcw, RotateCw, Download } from 'lucide-react';
 import { generateMenuItemDetails } from '../services/geminiService';
 import { saveNewEstimate, updateEstimate } from '../services/estimateService';
 import toast from 'react-hot-toast';
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
-import { useUndoRedo } from '../hooks/useUndoRedo'; // Importando o novo hook
+// Removendo importações de html2canvas e jsPDF
+import { useUndoRedo } from '../hooks/useUndoRedo'; 
 
 interface EstimateResultProps {
   estimate: Estimate;
@@ -504,82 +503,108 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
       }
   };
   
-  const handleExportPDF = async () => {
+  /**
+   * Gera e baixa o arquivo CSV detalhado do orçamento.
+   */
+  const handleExportCSV = () => {
       setIsExporting(true);
-      const toastId = toast.loading('Gerando PDF...');
+      const toastId = toast.loading('Gerando CSV...');
       
-      // Captura o elemento que agora contém todo o conteúdo
-      const input = document.getElementById('estimate-content');
-      if (!input) {
-          toast.error('Conteúdo do orçamento não encontrado.', { id: toastId });
-          setIsExporting(false);
-          return;
-      }
+      const SEPARATOR = ';';
+      const DATE_CREATED = new Date(estimate.createdAt).toLocaleDateString('pt-BR');
+      
+      // Função auxiliar para formatar números para CSV (usando ponto como separador decimal)
+      const formatNumber = (value: number) => (value || 0).toFixed(2).replace('.', ',');
 
-      // 1. Salvar o estado atual de expansão
-      const originalExpandedMenus = expandedMenus;
-      const originalLaborExpanded = isLaborExpanded;
-      const originalProductionExpanded = isProductionExpanded;
+      const headers = [
+          "Descrição do Item", 
+          "Quantidade", 
+          "Unidade", 
+          "Custo Unitário (R$)", 
+          "Custo Total (R$)", 
+          "Categoria", 
+          "Data de Criação"
+      ];
       
-      // 2. Expandir todas as seções para a captura
-      const allExpandedMenus: Record<number, boolean> = {};
-      estimate.menuItems.forEach((_, index) => {
-          allExpandedMenus[index] = true;
+      const rows: string[][] = [];
+
+      // 1. Itens do Menu (Ingredientes)
+      estimate.menuItems.forEach(menuItem => {
+          menuItem.ingredients.forEach(item => {
+              rows.push([
+                  item.name,
+                  formatNumber(item.qty),
+                  item.unit,
+                  formatNumber(item.unitCost),
+                  formatNumber(item.totalCost),
+                  `Ingrediente: ${menuItem.name}`,
+                  DATE_CREATED
+              ]);
+          });
+      });
+
+      // 2. Mão de Obra
+      (estimate.totals.laborDetails || []).forEach(detail => {
+          rows.push([
+              detail.role,
+              detail.count.toString(),
+              'Diária/Unidade',
+              formatNumber(detail.costPerUnit),
+              formatNumber(detail.totalCost),
+              'Mão de Obra',
+              DATE_CREATED
+          ]);
+      });
+
+      // 3. Outros Custos
+      (estimate.totals.otherCosts || []).forEach(cost => {
+          rows.push([
+              cost.name,
+              '1', // Quantidade fixa 1 para custos fixos
+              'Unidade',
+              formatNumber(cost.cost),
+              formatNumber(cost.cost),
+              'Outros Custos',
+              DATE_CREATED
+          ]);
       });
       
-      setExpandedMenus(allExpandedMenus);
-      setIsLaborExpanded(true);
-      setIsProductionExpanded(true);
+      // 4. Resumo (Custo Total e Preço Sugerido)
+      rows.push([
+          "CUSTO TOTAL (Incluindo Impostos)",
+          '1',
+          'Total',
+          formatNumber(estimate.totals.totalCost),
+          formatNumber(estimate.totals.totalCost),
+          'Resumo',
+          DATE_CREATED
+      ]);
+      rows.push([
+          "PREÇO SUGERIDO (Margem de " + margin + "%)",
+          '1',
+          'Total',
+          formatNumber(updatedTotals.suggestedPrice),
+          formatNumber(updatedTotals.suggestedPrice),
+          'Resumo',
+          DATE_CREATED
+      ]);
 
-      // 3. Esperar o próximo ciclo de renderização para que o DOM seja atualizado
-      await new Promise(resolve => setTimeout(resolve, 50)); 
 
-      try {
-          // 4. Captura o conteúdo HTML como uma imagem (canvas)
-          const canvas = await html2canvas(input, {
-              scale: 2, // Aumenta a escala para melhor qualidade
-              useCORS: true,
-              logging: false,
-          });
+      const csvContent = [headers, ...rows]
+          .map(e => e.map(cell => `"${cell.replace(/"/g, '""')}"`).join(SEPARATOR)) // Envolve células em aspas e usa ;
+          .join("\n");
 
-          const imgData = canvas.toDataURL('image/png');
-          
-          // Configuração para lidar com conteúdo longo (múltiplas páginas)
-          const pdf = new jsPDF('p', 'mm', 'a4');
-          const imgProps = pdf.getImageProperties(imgData);
-          const pdfWidth = pdf.internal.pageSize.getWidth();
-          let pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-          let heightLeft = pdfHeight;
-          let position = 0;
-          const pageHeight = pdf.internal.pageSize.getHeight();
-
-          // 5. Adiciona a imagem ao PDF, dividindo em páginas se necessário
-          pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
-          heightLeft -= pageHeight;
-
-          while (heightLeft >= 0) {
-              position = heightLeft - pdfHeight;
-              pdf.addPage();
-              pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
-              heightLeft -= pageHeight;
-          }
-          
-          // 6. Salva o arquivo
-          const filename = `Orcamento_${estimate.eventType.replace(/\s/g, '_')}_${estimate.guests}_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.pdf`;
-          pdf.save(filename);
-          
-          toast.success('PDF gerado com sucesso!', { id: toastId });
-
-      } catch (error) {
-          console.error("PDF Export Error:", error);
-          toast.error('Falha ao gerar o PDF.', { id: toastId });
-      } finally {
-          // 7. Restaurar o estado de expansão original
-          setExpandedMenus(originalExpandedMenus);
-          setIsLaborExpanded(originalLaborExpanded);
-          setIsProductionExpanded(originalProductionExpanded);
-          setIsExporting(false);
-      }
+      // Adiciona o BOM (Byte Order Mark) para garantir que caracteres especiais (acentos) funcionem no Excel
+      const BOM = "\uFEFF";
+      const blob = new Blob([BOM + csvContent], { type: "text/csv;charset=utf-8;" });
+      
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "orcamento_buffet.csv";
+      link.click();
+      
+      toast.success('CSV gerado com sucesso!', { id: toastId });
+      setIsExporting(false);
   };
 
 
@@ -900,18 +925,18 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                             </>
                         )}
                         
-                        {/* Export PDF Button */}
+                        {/* Export CSV Button */}
                         <button 
-                            onClick={handleExportPDF}
+                            onClick={handleExportCSV}
                             disabled={isExporting}
                             className="bg-slate-100 text-slate-700 font-bold py-2 px-4 rounded-lg hover:bg-slate-200 transition flex items-center disabled:opacity-60"
                         >
                           {isExporting ? (
                               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                           ) : (
-                              <FileText className="w-4 h-4 mr-2 text-red-500" />
+                              <Download className="w-4 h-4 mr-2 text-green-500" />
                           )}
-                          {isExporting ? 'Exportando...' : 'Exportar PDF'}
+                          {isExporting ? 'Gerando CSV...' : 'Exportar CSV'}
                         </button>
                     </div>
                 </div>
