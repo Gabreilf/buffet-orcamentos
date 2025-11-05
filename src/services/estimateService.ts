@@ -32,16 +32,15 @@ export async function saveNewEstimate(estimate: Omit<Estimate, 'estimateId' | 't
     throw new Error('User not authenticated. Cannot save estimate.');
   }
 
-  // Prepare data for insertion, mapping Estimate fields to DB columns
-  const { totals, menuItems, consumptionAverages, ...rest } = estimate;
-  
+  // Mapeamento explícito dos campos para o schema do banco de dados
   const insertData = {
-    ...rest,
     user_id: user.id,
-    menu_items: menuItems, // JSONB column
-    totals: totals, // JSONB column
-    consumption_averages: consumptionAverages, // JSONB column
-    // The DB will auto-generate 'id' and 'created_at'
+    event_type: estimate.eventType,
+    guests: estimate.guests,
+    status: estimate.status,
+    menu_items: estimate.menuItems, // JSONB column
+    totals: estimate.totals, // JSONB column
+    consumption_averages: estimate.consumptionAverages, // JSONB column
   };
 
   const { data, error } = await supabase
@@ -52,13 +51,14 @@ export async function saveNewEstimate(estimate: Omit<Estimate, 'estimateId' | 't
 
   if (error) {
     console.error('Error saving new estimate:', error);
-    throw new Error('Failed to save the new estimate.');
+    // Lançamos o erro original para que o frontend possa exibir a mensagem de falha
+    throw new Error('Failed to save the new estimate: ' + error.message);
   }
 
-  // Map DB response back to Estimate type
+  // Mapeia a resposta do DB de volta para o tipo Estimate
   const savedEstimate: Estimate = {
     estimateId: data.id,
-    tenantId: 'buffet-xyz', // Placeholder, should be managed by profiles later
+    tenantId: 'buffet-xyz', // Mantendo o placeholder
     createdAt: data.created_at,
     eventType: data.event_type,
     guests: data.guests,
@@ -81,27 +81,27 @@ export async function updateEstimate(estimate: Estimate): Promise<Estimate> {
     throw new Error('User not authenticated. Cannot update estimate.');
   }
 
-  // Prepare data for update
-  const { estimateId, totals, menuItems, consumptionAverages, ...rest } = estimate;
-  
+  // Mapeamento explícito dos campos para o schema do banco de dados
   const updateData = {
-    ...rest,
-    menu_items: menuItems,
-    totals: totals,
-    consumption_averages: consumptionAverages,
-    // user_id is implicitly checked by RLS policy
+    event_type: estimate.eventType,
+    guests: estimate.guests,
+    status: estimate.status,
+    menu_items: estimate.menuItems,
+    totals: estimate.totals,
+    consumption_averages: estimate.consumptionAverages,
+    // user_id não é atualizado, mas a RLS garante que apenas o dono possa atualizar
   };
 
   const { data, error } = await supabase
     .from('estimates')
     .update(updateData)
-    .eq('id', estimateId)
+    .eq('id', estimate.estimateId)
     .select()
     .single();
 
   if (error) {
     console.error('Error updating estimate:', error);
-    throw new Error('Failed to update the estimate.');
+    throw new Error('Failed to update the estimate: ' + error.message);
   }
 
   // Map DB response back to Estimate type
