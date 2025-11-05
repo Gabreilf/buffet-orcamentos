@@ -4,8 +4,13 @@ import { Estimate, CustomCost, MenuItemDetail } from '../types';
 // A chave da API é injetada pelo Vite/Vercel através do define no vite.config.ts
 const apiKey = process.env.API_KEY as string;
 
-// Initialize the client. It will use the injected apiKey.
-const ai = new GoogleGenAI({ apiKey });
+// Função para inicializar o cliente Gemini
+const getGeminiClient = () => {
+    if (!apiKey) {
+        throw new Error("A chave da API Gemini (GEMINI_API_KEY) não está configurada. Por favor, verifique suas variáveis de ambiente.");
+    }
+    return new GoogleGenAI({ apiKey });
+};
 
 const menuItemSchema = {
     type: Type.OBJECT,
@@ -89,12 +94,8 @@ const estimateSchema = {
  * @returns {Promise<boolean>} True se a conexão for bem-sucedida.
  */
 export const testGeminiConnectivity = async (): Promise<boolean> => {
-    if (!apiKey) {
-        console.error("API Key is missing.");
-        return false;
-    }
-    
     try {
+        const ai = getGeminiClient();
         // Tenta uma chamada simples para verificar a autenticação e a conectividade.
         // Usamos um modelo leve e uma requisição mínima.
         await ai.models.generateContent({
@@ -116,11 +117,9 @@ export const testGeminiConnectivity = async (): Promise<boolean> => {
  * Gera os detalhes de ingredientes e custos para um único item de menu.
  */
 export const generateMenuItemDetails = async (menuItemName: string, guests: number): Promise<MenuItemDetail> => {
-    if (!apiKey) {
-        throw new Error("A chave da API Gemini não está configurada.");
-    }
-    
     try {
+        const ai = getGeminiClient();
+        
         const result = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: `Calcule os ingredientes e custos necessários para preparar o prato "${menuItemName}" para um evento com ${guests} convidados.
@@ -145,17 +144,19 @@ export const generateMenuItemDetails = async (menuItemName: string, guests: numb
         if (error instanceof SyntaxError) {
              throw new Error("A IA retornou um formato inválido ao calcular a receita. Tente novamente.");
         }
+        // Se for um erro de chave, a função getGeminiClient já lançou uma mensagem clara.
+        if (error instanceof Error && error.message.includes("GEMINI_API_KEY")) {
+             throw error;
+        }
         throw new Error("Não foi possível calcular a receita. Verifique a chave da API e tente novamente.");
     }
 };
 
 
 export const generateEstimateFromText = async (text: string, customCosts: CustomCost[]): Promise<Estimate> => {
-    if (!apiKey) {
-        throw new Error("A chave da API Gemini não está configurada. Por favor, verifique suas variáveis de ambiente.");
-    }
-    
     try {
+        const ai = getGeminiClient();
+        
         const customCostsString = customCosts
             .map(cost => `- Custo de "${cost.name}": ${cost.cost} BRL`)
             .join('\n');
@@ -206,6 +207,10 @@ export const generateEstimateFromText = async (text: string, customCosts: Custom
         // Se o erro for de parsing, a mensagem será mais clara.
         if (error instanceof SyntaxError) {
              throw new Error("A IA retornou um formato inválido. Tente novamente ou simplifique o pedido.");
+        }
+        // Se for um erro de chave, a função getGeminiClient já lançou uma mensagem clara.
+        if (error instanceof Error && error.message.includes("GEMINI_API_KEY")) {
+             throw error;
         }
         throw new Error("Não foi possível gerar o orçamento. Verifique a chave da API e tente novamente.");
     }

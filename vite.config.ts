@@ -3,7 +3,12 @@ import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
+    // Carrega variáveis de ambiente do .env e .env.local
     const env = loadEnv(mode, '.', '');
+    
+    // Define a chave da API Gemini para ser acessível no código como process.env.API_KEY
+    const geminiApiKey = env.GEMINI_API_KEY || '';
+
     return {
       // Define a base path para a raiz do domínio, padrão para Vercel
       base: '/', 
@@ -13,9 +18,9 @@ export default defineConfig(({ mode }) => {
       },
       plugins: [react()],
       define: {
-        // Injeta a chave da API Gemini como process.env.API_KEY para compatibilidade com o serviço
-        'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-        // Injeta as chaves Supabase para o cliente (se não estiverem no .env.local, use as da Vercel)
+        // Injeta a chave da API Gemini
+        'process.env.API_KEY': JSON.stringify(geminiApiKey),
+        // Injeta as chaves Supabase para o cliente
         'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(env.VITE_SUPABASE_URL),
         'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(env.VITE_SUPABASE_ANON_KEY),
       },
