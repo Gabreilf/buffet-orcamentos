@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Estimate, CustomCost } from '../types';
 import { updateEstimate } from '../services/estimateService';
 import toast from 'react-hot-toast';
@@ -44,6 +44,29 @@ const deliveryStatusOptions: { value: Estimate['deliveryStatus']; text: string; 
     { value: 'cancelled', text: 'Cancelado', className: 'bg-red-100 text-red-700 border-red-300' },
 ];
 
+// Tipo para gerenciar o estado local da data (Dia, Mês, Ano)
+interface DateParts {
+    day: string;
+    month: string;
+    year: string;
+}
+
+// Função auxiliar para extrair D/M/A de YYYY-MM-DD
+const parseDateParts = (dateString: string | undefined): DateParts => {
+    if (!dateString) return { day: '', month: '', year: '' };
+    
+    // Espera YYYY-MM-DD do banco de dados
+    const parts = dateString.split('-');
+    if (parts.length === 3) {
+        return {
+            year: parts[0] || '',
+            month: parts[1] || '',
+            day: parts[2] || '',
+        };
+    }
+    return { day: '', month: '', year: '' };
+};
+
 const Dashboard: React.FC<DashboardProps> = ({
   estimates,
   customCosts,
@@ -53,16 +76,16 @@ const Dashboard: React.FC<DashboardProps> = ({
   onEstimateUpdated,
 }) => {
     const [editableCustomCosts, setEditableCustomCosts] = useState<CustomCost[]>(JSON.parse(JSON.stringify(customCosts)));
-    // Estado local para gerenciar a data do evento enquanto o usuário digita
-    const [editingDates, setEditingDates] = useState<Record<string, string>>({});
+    // Estado local para gerenciar as partes da data de cada orçamento
+    const [editingDateParts, setEditingDateParts] = useState<Record<string, DateParts>>({});
 
     // Sincroniza as datas iniciais quando os orçamentos mudam
     useEffect(() => {
-        const initialDates: Record<string, string> = {};
+        const initialDateParts: Record<string, DateParts> = {};
         estimates.forEach(e => {
-            initialDates[e.estimateId] = e.eventDate || '';
+            initialDateParts[e.estimateId] = parseDateParts(e.eventDate);
         });
-        setEditingDates(initialDates);
+        setEditingDateParts(initialDateParts);
     }, [estimates]);
 
     const handleCustomCostChange = (index: number, field: keyof Omit<CustomCost, 'id'>, value: string) => {
@@ -91,7 +114,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     };
     
     // Função que salva no Supabase
-    const saveEstimateField = async (estimate: Estimate, field: 'eventDate' | 'deliveryStatus', value: string) => {
+    const saveEstimateField = useCallback(async (estimate: Estimate, field: 'eventDate' | 'deliveryStatus', value: string) => {
         const updatedEstimate: Estimate = {
             ...estimate,
             [field]: value,
@@ -108,28 +131,58 @@ const Dashboard: React.FC<DashboardProps> = ({
             toast.error(error.message || 'Falha ao atualizar o orçamento.', { id: toastId });
             // Se falhar, reverte o estado local para o valor original do estimate
             if (field === 'eventDate') {
-                setEditingDates(prev => ({
+                setEditingDateParts(prev => ({
                     ...prev,
-                    [estimate.estimateId]: estimate.eventDate || ''
+                    [estimate.estimateId]: parseDateParts(estimate.eventDate)
                 }));
             }
         }
-    };
+    }, [onEstimateUpdated]);
 
-    // Handler para mudança de data (apenas atualiza o estado local)
-    const handleDateChange = (estimateId: string, value: string) => {
-        setEditingDates(prev => ({
+    // Handler para mudança de parte da data (apenas atualiza o estado local)
+    const handleDatePartChange = (estimateId: string, part: keyof DateParts, value: string) => {
+        // Permite apenas números e limita o tamanho
+        const numericValue = value.replace(/[^0-9]/g, '');
+        
+        setEditingDateParts(prev => ({
             ...prev,
-            [estimateId]: value
+            [estimateId]: {
+                ...prev[estimateId],
+                [part]: numericValue.slice(0, part === 'year' ? 4 : 2)
+            }
         }));
     };
 
     // Handler para salvar a data quando o campo perde o foco
     const handleDateBlur = (estimate: Estimate) => {
-        const currentValue = editingDates[estimate.estimateId];
-        // Só salva se o valor mudou
-        if (currentValue !== (estimate.eventDate || '')) {
-            saveEstimateField(estimate, 'eventDate', currentValue);
+        const parts = editingDateParts[estimate.estimateId];
+        
+        // Formata para YYYY-MM-DD
+        const day = parts.day.padStart(2, '0');
+        const month = parts.month.padStart(2, '0');
+        const year = parts.year.padStart(4, '0');
+        
+        let newDateString = '';
+        
+        // Verifica se todos os campos estão preenchidos
+        if (day.length === 2 && month.length === 2 && year.length === 4) {
+            newDateString = `${year}-${month}-${day}`;
+        } else if (parts.day === '' && parts.month === '' && parts.year === '') {
+            // Se todos estiverem vazios, salva como string vazia (que será convertida para NULL no service)
+            newDateString = '';
+        } else {
+            // Se estiver incompleto, mas não vazio, não salva e notifica o usuário
+            if (estimate.eventDate !== undefined && estimate.eventDate !== null && estimate.eventDate !== '') {
+                 // Se a data anterior era válida, não faz nada para evitar perda de dados
+                 return;
+            }
+            // Se estava vazio e o usuário digitou algo incompleto, não salva.
+            return;
+        }
+        
+        // Só salva se o valor final mudou
+        if (newDateString !== (estimate.eventDate || '')) {
+            saveEstimateField(estimate, 'eventDate', newDateString);
         }
     };
 
@@ -139,9 +192,9 @@ const Dashboard: React.FC<DashboardProps> = ({
 
     const handleClearDate = (estimate: Estimate) => {
         // Limpa o estado local e salva no DB
-        setEditingDates(prev => ({
+        setEditingDateParts(prev => ({
             ...prev,
-            [estimate.estimateId]: ''
+            [estimate.estimateId]: { day: '', month: '', year: '' }
         }));
         saveEstimateField(estimate, 'eventDate', '');
     };
@@ -164,7 +217,10 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <h3 className="text-xl font-semibold text-slate-700 mb-4">Orçamentos Recentes</h3>
                 {estimates.length > 0 ? (
                     <div className="space-y-4">
-                        {estimates.map((estimate) => (
+                        {estimates.map((estimate) => {
+                            const dateParts = editingDateParts[estimate.estimateId] || { day: '', month: '', year: '' };
+                            
+                            return (
                             <div key={estimate.estimateId} className="bg-white p-4 rounded-lg shadow-md hover:shadow-lg transition-shadow border border-slate-200">
                                 <div className="flex justify-between items-start mb-3">
                                     <div>
@@ -180,16 +236,48 @@ const Dashboard: React.FC<DashboardProps> = ({
                                 <div className="grid grid-cols-2 gap-4 mb-4 border-t pt-3 border-slate-100">
                                     <div>
                                         <label className="block text-xs font-medium text-slate-500 mb-1">Data do Evento</label>
-                                        <div className="relative flex items-center">
+                                        <div className="relative flex items-center space-x-1">
+                                            {/* Input Dia */}
                                             <input
                                                 type="text"
-                                                value={editingDates[estimate.estimateId] || ''}
-                                                onChange={(e) => handleDateChange(estimate.estimateId, e.target.value)}
-                                                onBlur={() => handleDateBlur(estimate)} // Salva no DB ao perder o foco
-                                                placeholder="AAAA-MM-DD"
-                                                className="w-full p-2 border border-slate-300 rounded-md text-sm text-slate-700 pr-8"
+                                                inputMode="numeric"
+                                                pattern="[0-9]*"
+                                                value={dateParts.day}
+                                                onChange={(e) => handleDatePartChange(estimate.estimateId, 'day', e.target.value)}
+                                                onBlur={() => handleDateBlur(estimate)}
+                                                placeholder="DD"
+                                                maxLength={2}
+                                                className="w-10 p-2 border border-slate-300 rounded-md text-sm text-slate-700 text-center"
                                             />
-                                            {editingDates[estimate.estimateId] && (
+                                            <span className="text-slate-500">/</span>
+                                            {/* Input Mês */}
+                                            <input
+                                                type="text"
+                                                inputMode="numeric"
+                                                pattern="[0-9]*"
+                                                value={dateParts.month}
+                                                onChange={(e) => handleDatePartChange(estimate.estimateId, 'month', e.target.value)}
+                                                onBlur={() => handleDateBlur(estimate)}
+                                                placeholder="MM"
+                                                maxLength={2}
+                                                className="w-10 p-2 border border-slate-300 rounded-md text-sm text-slate-700 text-center"
+                                            />
+                                            <span className="text-slate-500">/</span>
+                                            {/* Input Ano */}
+                                            <input
+                                                type="text"
+                                                inputMode="numeric"
+                                                pattern="[0-9]*"
+                                                value={dateParts.year}
+                                                onChange={(e) => handleDatePartChange(estimate.estimateId, 'year', e.target.value)}
+                                                onBlur={() => handleDateBlur(estimate)}
+                                                placeholder="AAAA"
+                                                maxLength={4}
+                                                className="w-16 p-2 border border-slate-300 rounded-md text-sm text-slate-700 text-center"
+                                            />
+                                            
+                                            {/* Botão de Limpar */}
+                                            {(dateParts.day || dateParts.month || dateParts.year) && (
                                                 <button
                                                     onClick={() => handleClearDate(estimate)}
                                                     className="absolute right-0 top-0 bottom-0 px-2 text-slate-500 hover:text-red-500 transition"
@@ -224,7 +312,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                                     </button>
                                 </div>
                             </div>
-                        ))}
+                        );})}
                     </div>
                 ) : (
                     <div className="text-center py-12 bg-white rounded-lg shadow-md border border-slate-200">

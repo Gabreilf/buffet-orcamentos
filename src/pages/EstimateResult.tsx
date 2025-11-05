@@ -22,6 +22,30 @@ const commonUnits = [
     'kg', 'g', 'L', 'ml', 'unidade', 'caixa', 'pacote', 'lata', 'litro', 'fardo'
 ];
 
+// Tipo para gerenciar o estado local da data (Dia, Mês, Ano)
+interface DateParts {
+    day: string;
+    month: string;
+    year: string;
+}
+
+// Função auxiliar para extrair D/M/A de YYYY-MM-DD
+const parseDateParts = (dateString: string | undefined): DateParts => {
+    if (!dateString) return { day: '', month: '', year: '' };
+    
+    // Espera YYYY-MM-DD do banco de dados
+    const parts = dateString.split('-');
+    if (parts.length === 3) {
+        return {
+            year: parts[0] || '',
+            month: parts[1] || '',
+            day: parts[2] || '',
+        };
+    }
+    return { day: '', month: '', year: '' };
+};
+
+
 // Tipo interno para gerenciar as premissas de forma estruturada
 interface StructuredPremise {
   id: string;
@@ -76,6 +100,9 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
   const [expandedMenus, setExpandedMenus] = useState<Record<number, boolean>>({});
   const [isExporting, setIsExporting] = useState(false); 
   
+  // Estado local para as partes da data
+  const [dateParts, setDateParts] = useState<DateParts>(() => parseDateParts(initialEstimate.eventDate));
+  
   // Estado estruturado para edição das premissas
   const [structuredAverages, setStructuredAverages] = useState<StructuredPremise[]>(() => parsePremises(initialEstimate.consumptionAverages || []));
   const [isPremiseEditing, setIsPremiseEditing] = useState(false); 
@@ -90,7 +117,9 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
   // Sincroniza o estado estruturado das premissas quando o estimate muda (ex: após undo/redo)
   useEffect(() => {
       setStructuredAverages(parsePremises(estimate.consumptionAverages || []));
-  }, [estimate.consumptionAverages]);
+      // Sincroniza as partes da data quando o estimate muda (ex: após undo/redo)
+      setDateParts(parseDateParts(estimate.eventDate));
+  }, [estimate.consumptionAverages, estimate.eventDate]);
 
 
   const toggleMenuExpansion = (index: number) => {
@@ -377,19 +406,48 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
   };
   // -----------------------------------------
   
-  // Handler para edição da data do evento
-  const handleEventDateChange = (value: string) => {
-      setEstimate({ ...estimate, eventDate: value });
-  };
-  
   // Handler para edição do tipo de evento
   const handleEventTypeChange = (value: string) => {
       setEstimate({ ...estimate, eventType: value });
   };
   
+  // --- Handlers para as partes da data ---
+  const handleDatePartChange = (part: keyof DateParts, value: string) => {
+      // Permite apenas números e limita o tamanho
+      const numericValue = value.replace(/[^0-9]/g, '');
+      
+      setDateParts(prev => {
+          const newParts = {
+              ...prev,
+              [part]: numericValue.slice(0, part === 'year' ? 4 : 2)
+          };
+          
+          // Tenta combinar e atualizar o estimate imediatamente (para que o undo/redo funcione)
+          const day = newParts.day.padStart(2, '0');
+          const month = newParts.month.padStart(2, '0');
+          const year = newParts.year.padStart(4, '0');
+          
+          let newDateString = '';
+          
+          if (day.length === 2 && month.length === 2 && year.length === 4) {
+              newDateString = `${year}-${month}-${day}`;
+          } else if (newParts.day === '' && newParts.month === '' && newParts.year === '') {
+              newDateString = '';
+          }
+          
+          // Atualiza o estimate apenas se a string final for válida ou vazia
+          if (newDateString !== (estimate.eventDate || '')) {
+              setEstimate({ ...estimate, eventDate: newDateString });
+          }
+          
+          return newParts;
+      });
+  };
+  
   // Handler para limpar a data do evento
   const handleClearEventDate = () => {
-      handleEventDateChange('');
+      setDateParts({ day: '', month: '', year: '' });
+      setEstimate({ ...estimate, eventDate: '' });
   };
 
 
@@ -397,7 +455,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
       setIsSaving(true);
       const toastId = toast.loading('Salvando orçamento...');
       
-      // Ensure the suggested price is updated before saving
+      // Garante que a data atual (que está no estimate.eventDate) e o preço sugerido estão corretos
       const estimateToSave = {
           ...estimate,
           totals: updatedTotals,
@@ -537,15 +595,44 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
               {/* Campo de Edição da Data do Evento */}
               <div className="mt-2 flex items-center space-x-2 text-sm text-slate-500">
                   <span className="font-medium">Data do Evento:</span>
-                  <div className="relative flex items-center">
+                  <div className="relative flex items-center space-x-1">
+                      {/* Input Dia */}
                       <input
                           type="text"
-                          value={estimate.eventDate || ''}
-                          onChange={(e) => handleEventDateChange(e.target.value)}
-                          placeholder="AAAA-MM-DD (Opcional)"
-                          className="bg-transparent p-1 rounded border border-slate-200 focus:border-indigo-500 text-sm w-32 pr-6"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          value={dateParts.day}
+                          onChange={(e) => handleDatePartChange('day', e.target.value)}
+                          placeholder="DD"
+                          maxLength={2}
+                          className="w-10 bg-transparent p-1 rounded border border-slate-200 focus:border-indigo-500 text-sm text-center"
                       />
-                      {estimate.eventDate && (
+                      <span className="text-slate-500">/</span>
+                      {/* Input Mês */}
+                      <input
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          value={dateParts.month}
+                          onChange={(e) => handleDatePartChange('month', e.target.value)}
+                          placeholder="MM"
+                          maxLength={2}
+                          className="w-10 bg-transparent p-1 rounded border border-slate-200 focus:border-indigo-500 text-sm text-center"
+                      />
+                      <span className="text-slate-500">/</span>
+                      {/* Input Ano */}
+                      <input
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          value={dateParts.year}
+                          onChange={(e) => handleDatePartChange('year', e.target.value)}
+                          placeholder="AAAA"
+                          maxLength={4}
+                          className="w-16 bg-transparent p-1 rounded border border-slate-200 focus:border-indigo-500 text-sm text-center"
+                      />
+                      
+                      {(dateParts.day || dateParts.month || dateParts.year) && (
                           <button
                               onClick={handleClearEventDate}
                               className="absolute right-0 top-0 bottom-0 px-1 text-slate-500 hover:text-red-500 transition"
