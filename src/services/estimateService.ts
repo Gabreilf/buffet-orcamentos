@@ -42,6 +42,14 @@ export async function saveNewEstimate(estimate: Omit<Estimate, 'estimateId' | 't
   if (userError || !user) {
     throw new Error('User not authenticated. Cannot save estimate.');
   }
+  
+  // Helper para garantir que strings vazias sejam salvas como NULL no DB
+  const getDbDate = (dateString: string | undefined) => {
+      if (!dateString || dateString.trim() === '') {
+          return null;
+      }
+      return dateString;
+  };
 
   // Mapeamento explícito dos campos para o schema do banco de dados
   const insertData = {
@@ -52,7 +60,7 @@ export async function saveNewEstimate(estimate: Omit<Estimate, 'estimateId' | 't
     menu_items: estimate.menuItems, // JSONB column
     totals: estimate.totals, // JSONB column
     consumption_averages: estimate.consumptionAverages, // JSONB column
-    event_date: estimate.eventDate, // Novo campo
+    event_date: getDbDate(estimate.eventDate), // Conversão para NULL se vazio
     delivery_status: estimate.deliveryStatus, // Novo campo
   };
 
@@ -95,6 +103,14 @@ export async function updateEstimate(estimate: Estimate): Promise<Estimate> {
   if (userError || !user) {
     throw new Error('User not authenticated. Cannot update estimate.');
   }
+  
+  // Helper para garantir que strings vazias sejam salvas como NULL no DB
+  const getDbDate = (dateString: string | undefined) => {
+      if (!dateString || dateString.trim() === '') {
+          return null;
+      }
+      return dateString;
+  };
 
   // Mapeamento explícito dos campos para o schema do banco de dados
   const updateData = {
@@ -104,7 +120,7 @@ export async function updateEstimate(estimate: Estimate): Promise<Estimate> {
     menu_items: estimate.menuItems,
     totals: estimate.totals,
     consumption_averages: estimate.consumptionAverages,
-    event_date: estimate.eventDate, // Novo campo
+    event_date: getDbDate(estimate.eventDate), // Conversão para NULL se vazio
     delivery_status: estimate.deliveryStatus, // Novo campo
     // user_id não é atualizado, mas a RLS garante que apenas o dono possa atualizar
   };
