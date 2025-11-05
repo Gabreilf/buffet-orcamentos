@@ -715,7 +715,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                           type="text"
                           value={cost.name}
                           onChange={(e) => handleOtherCostChange(index, 'name', e.target.value)}
-                          // REMOVENDO onBlur para digitação fluida
+                          onBlur={() => setEstimate(estimate, true)} // Adiciona ao histórico ao perder o foco
                           placeholder="Nome do Custo"
                           className={`text-slate-500 bg-transparent p-1 rounded border ${isExporting ? 'border-transparent' : 'border-slate-300 focus:border-indigo-500 focus:ring-indigo-500'} w-3/5 text-sm`}
                           readOnly={isExporting}
@@ -727,7 +727,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                               step="0.01"
                               value={cost.cost}
                               onChange={(e) => handleOtherCostChange(index, 'cost', e.target.value)}
-                              // REMOVENDO onBlur para digitação fluida
+                              onBlur={() => setEstimate(estimate, true)} // Adiciona ao histórico ao perder o foco
                               className={`font-medium bg-transparent p-1 rounded border ${isExporting ? 'border-transparent' : 'border-slate-300 focus:border-indigo-500 focus:ring-indigo-500'} w-24 text-right text-sm`}
                               readOnly={isExporting}
                           />
@@ -816,7 +816,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                               type="text"
                               value={estimate.eventType}
                               onChange={(e) => handleEventTypeChange(e.target.value)}
-                              // REMOVENDO onBlur para digitação fluida
+                              onBlur={() => setEstimate(estimate, true)} // Adiciona ao histórico ao perder o foco
                               className="text-xl font-bold text-slate-800 bg-transparent p-1 -ml-1 rounded border border-slate-200 focus:border-indigo-500"
                           />
                           <span className="text-lg font-normal">para {estimate.guests} convidados.</span>
@@ -833,7 +833,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                                   pattern="[0-9]*"
                                   value={dateParts.day}
                                   onChange={(e) => handleDatePartChange('day', e.target.value)}
-                                  // REMOVENDO onBlur para digitação fluida
+                                  onBlur={() => setEstimate(estimate, true)} // Adiciona ao histórico ao perder o foco
                                   placeholder="DD"
                                   maxLength={2}
                                   className="w-10 bg-transparent p-1 rounded border border-slate-200 focus:border-indigo-500 text-sm text-center"
@@ -846,7 +846,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                                   pattern="[0-9]*"
                                   value={dateParts.month}
                                   onChange={(e) => handleDatePartChange('month', e.target.value)}
-                                  // REMOVENDO onBlur para digitação fluida
+                                  onBlur={() => setEstimate(estimate, true)} // Adiciona ao histórico ao perder o foco
                                   placeholder="MM"
                                   maxLength={2}
                                   className="w-10 bg-transparent p-1 rounded border border-slate-200 focus:border-indigo-500 text-sm text-center"
@@ -859,7 +859,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                                   pattern="[0-9]*"
                                   value={dateParts.year}
                                   onChange={(e) => handleDatePartChange('year', e.target.value)}
-                                  // REMOVENDO onBlur para digitação fluida
+                                  onBlur={() => setEstimate(estimate, true)} // Adiciona ao histórico ao perder o foco
                                   placeholder="AAAA"
                                   maxLength={4}
                                   className="w-16 bg-transparent p-1 rounded border border-slate-200 focus:border-indigo-500 text-sm text-center"
@@ -943,7 +943,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                                         type="text"
                                         value={p.item}
                                         onChange={(e) => handleStructuredPremiseChange(p.id, 'item', e.target.value)}
-                                        // REMOVENDO onBlur para digitação fluida
+                                        onBlur={() => setEstimate(estimate, true)} // Adiciona ao histórico ao perder o foco
                                         placeholder="Item (ex: Carne)"
                                         className={`flex-1 p-2 rounded border text-sm text-slate-700 ${isExporting ? 'bg-transparent border-transparent' : 'bg-white border-indigo-300 focus:border-indigo-500'}`}
                                         readOnly={isExporting}
@@ -957,7 +957,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                                         type="number"
                                         value={p.quantity}
                                         onChange={(e) => handleStructuredPremiseChange(p.id, 'quantity', e.target.value)}
-                                        // REMOVENDO onBlur para digitação fluida
+                                        onBlur={() => setEstimate(estimate, true)} // Adiciona ao histórico ao perder o foco
                                         placeholder="Qtde"
                                         className={`w-20 p-2 rounded border text-sm text-slate-700 text-right ${isExporting ? 'bg-transparent border-transparent' : 'bg-white border-indigo-300 focus:border-indigo-500'}`}
                                         readOnly={isExporting}
@@ -973,7 +973,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                                     <select
                                         value={p.unit}
                                         onChange={(e) => handleStructuredPremiseChange(p.id, 'unit', e.target.value)}
-                                        // REMOVENDO onBlur para digitação fluida
+                                        onBlur={() => setEstimate(estimate, true)} // Adiciona ao histórico ao perder o foco
                                         className={`w-20 p-2 rounded border text-sm text-slate-700 ${isExporting ? 'bg-transparent border-transparent appearance-none' : 'bg-white border-indigo-300 focus:border-indigo-500'}`}
                                         disabled={isExporting}
                                     >
@@ -1053,7 +1053,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                                               type="text" 
                                               value={item.name} 
                                               onChange={(e) => handleItemChange(menuItemIndex, itemIndex, 'name', e.target.value)} 
-                                              // REMOVENDO onBlur para digitação fluida
+                                              onBlur={() => setEstimate(estimate, true)} // Adiciona ao histórico ao perder o foco
                                               className={`w-full bg-transparent p-1 rounded border text-sm whitespace-normal ${isExporting ? 'border-transparent' : 'border-slate-300 focus:border-indigo-500 focus:ring-indigo-500'}`}
                                               readOnly={isExporting}
                                             />
@@ -1063,7 +1063,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                                               type="number" 
                                               value={item.qty} 
                                               onChange={(e) => handleItemChange(menuItemIndex, itemIndex, 'qty', e.target.value)} 
-                                              // REMOVENDO onBlur para digitação fluida
+                                              onBlur={() => setEstimate(estimate, true)} // Adiciona ao histórico ao perder o foco
                                               className={`w-20 bg-transparent p-1 rounded border text-sm text-right ${isExporting ? 'border-transparent' : 'border-slate-300 focus:border-indigo-500 focus:ring-indigo-500'}`}
                                               readOnly={isExporting}
                                             />
@@ -1089,7 +1089,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                                               step="0.01" 
                                               value={item.unitCost} 
                                               onChange={(e) => handleItemChange(menuItemIndex, itemIndex, 'unitCost', e.target.value)} 
-                                              // REMOVENDO onBlur para digitação fluida
+                                              onBlur={() => setEstimate(estimate, true)} // Adiciona ao histórico ao perder o foco
                                               className={`w-24 bg-transparent p-1 rounded border text-sm text-right ${isExporting ? 'border-transparent' : 'border-slate-300 focus:border-indigo-500 focus:ring-indigo-500'}`}
                                               readOnly={isExporting}
                                             />
