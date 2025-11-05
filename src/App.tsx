@@ -102,8 +102,8 @@ const App: React.FC = () => {
       case 'new_estimate':
         return <NewEstimate onEstimateGenerated={handleEstimateGenerated} customCosts={customCosts} />;
       case 'estimate_result':
-        // Pass loadEstimates to allow saving/updating the list after changes
-        return activeEstimate ? <EstimateResult estimate={activeEstimate} onEstimateSaved={loadEstimates} /> : <Dashboard estimates={estimates} onCreateNew={handleCreateNewEstimate} onView={handleViewEstimate} customCosts={customCosts} onCustomCostsChange={setCustomCosts} />;
+        // Usamos a key para forçar a remontagem do componente EstimateResult sempre que o orçamento ativo mudar.
+        return activeEstimate ? <EstimateResult key={activeEstimate.estimateId} estimate={activeEstimate} onEstimateSaved={loadEstimates} /> : <Dashboard estimates={estimates} onCreateNew={handleCreateNewEstimate} onView={handleViewEstimate} customCosts={customCosts} onCustomCostsChange={setCustomCosts} />;
       case 'dashboard':
       default:
         return <Dashboard estimates={estimates} onCreateNew={handleCreateNewEstimate} onView={handleViewEstimate} customCosts={customCosts} onCustomCostsChange={setCustomCosts} />;
