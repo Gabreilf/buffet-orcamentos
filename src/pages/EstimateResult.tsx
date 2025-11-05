@@ -423,8 +423,26 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
           return;
       }
 
+      // 1. Salvar o estado atual de expansão
+      const originalExpandedMenus = expandedMenus;
+      const originalLaborExpanded = isLaborExpanded;
+      const originalProductionExpanded = isProductionExpanded;
+      
+      // 2. Expandir todas as seções para a captura
+      const allExpandedMenus: Record<number, boolean> = {};
+      estimate.menuItems.forEach((_, index) => {
+          allExpandedMenus[index] = true;
+      });
+      
+      setExpandedMenus(allExpandedMenus);
+      setIsLaborExpanded(true);
+      setIsProductionExpanded(true);
+
+      // 3. Esperar o próximo ciclo de renderização para que o DOM seja atualizado
+      await new Promise(resolve => setTimeout(resolve, 50)); 
+
       try {
-          // 1. Captura o conteúdo HTML como uma imagem (canvas)
+          // 4. Captura o conteúdo HTML como uma imagem (canvas)
           const canvas = await html2canvas(input, {
               scale: 2, // Aumenta a escala para melhor qualidade
               useCORS: true,
@@ -432,15 +450,28 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
           });
 
           const imgData = canvas.toDataURL('image/png');
-          const pdf = new jsPDF('p', 'mm', 'a4'); // 'p' portrait, 'mm' units, 'a4' size
+          
+          // Configuração para lidar com conteúdo longo (múltiplas páginas)
+          const pdf = new jsPDF('p', 'mm', 'a4');
           const imgProps = pdf.getImageProperties(imgData);
           const pdfWidth = pdf.internal.pageSize.getWidth();
-          const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+          let pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+          let heightLeft = pdfHeight;
+          let position = 0;
+          const pageHeight = pdf.internal.pageSize.getHeight();
 
-          // 2. Adiciona a imagem ao PDF
-          pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+          // 5. Adiciona a imagem ao PDF, dividindo em páginas se necessário
+          pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+          heightLeft -= pageHeight;
+
+          while (heightLeft >= 0) {
+              position = heightLeft - pdfHeight;
+              pdf.addPage();
+              pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+              heightLeft -= pageHeight;
+          }
           
-          // 3. Salva o arquivo
+          // 6. Salva o arquivo
           const filename = `Orcamento_${estimate.eventType.replace(/\s/g, '_')}_${estimate.guests}_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.pdf`;
           pdf.save(filename);
           
@@ -450,6 +481,10 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
           console.error("PDF Export Error:", error);
           toast.error('Falha ao gerar o PDF.', { id: toastId });
       } finally {
+          // 7. Restaurar o estado de expansão original
+          setExpandedMenus(originalExpandedMenus);
+          setIsLaborExpanded(originalLaborExpanded);
+          setIsProductionExpanded(originalProductionExpanded);
           setIsExporting(false);
       }
   };
@@ -599,6 +634,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
 
           <div className="space-y-6">
             {estimate.menuItems.map((menuItem, menuItemIndex) => {
+              // Usamos o estado local expandedMenus para controlar a visualização na tela
               const isExpanded = expandedMenus[menuItemIndex] || false;
               return (
                 <div key={menuItemIndex} className="border border-slate-200 rounded-lg overflow-hidden">
@@ -610,6 +646,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                     <ChevronDown className={`w-5 h-5 text-slate-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                   </button>
                   
+                  {/* O conteúdo é renderizado condicionalmente, mas será forçado a aparecer no PDF */}
                   {isExpanded && (
                     <div className="p-4 pt-2 bg-white">
                       <div className="overflow-x-auto">
@@ -757,7 +794,8 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                             </div>
                         </div>
                     )}
-                    {isProductionExpanded && estimate.totals.productionCost !== undefined && (
+                    {/* Conteúdo do Custo de Produção. Renderizado condicionalmente, mas forçado a aparecer no PDF */}
+                    {(isProductionExpanded || isExporting) && estimate.totals.productionCost !== undefined && (
                         <div className="pl-4 mt-2 space-y-1 border-l-2 border-slate-200 bg-slate-50 p-2 rounded">
                             <div className="flex justify-between text-xs">
                                 <span className="text-slate-500">Ingredientes:</span>
@@ -786,7 +824,8 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                         </span>
                       </div>
                     </div>
-                    {isLaborExpanded && estimate.totals.laborDetails && (
+                    {/* Conteúdo da Mão de Obra. Renderizado condicionalmente, mas forçado a aparecer no PDF */}
+                    {(isLaborExpanded || isExporting) && estimate.totals.laborDetails && (
                         <div className="pl-4 mt-2 space-y-2 border-l-2 border-slate-200">
                           {estimate.totals.laborDetails.map((detail, index) => (
                               <div key={index} className="flex items-center justify-between group py-1">
