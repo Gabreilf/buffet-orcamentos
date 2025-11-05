@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Estimate, CustomCost } from '../types';
 import { updateEstimate } from '../services/estimateService';
 import toast from 'react-hot-toast';
@@ -53,6 +53,17 @@ const Dashboard: React.FC<DashboardProps> = ({
   onEstimateUpdated,
 }) => {
     const [editableCustomCosts, setEditableCustomCosts] = useState<CustomCost[]>(JSON.parse(JSON.stringify(customCosts)));
+    // Estado local para gerenciar a data do evento enquanto o usuário digita
+    const [editingDates, setEditingDates] = useState<Record<string, string>>({});
+
+    // Sincroniza as datas iniciais quando os orçamentos mudam
+    useEffect(() => {
+        const initialDates: Record<string, string> = {};
+        estimates.forEach(e => {
+            initialDates[e.estimateId] = e.eventDate || '';
+        });
+        setEditingDates(initialDates);
+    }, [estimates]);
 
     const handleCustomCostChange = (index: number, field: keyof Omit<CustomCost, 'id'>, value: string) => {
         const newCosts = [...editableCustomCosts];
@@ -79,7 +90,8 @@ const Dashboard: React.FC<DashboardProps> = ({
         onCustomCostsChange(newCosts);
     };
     
-    const handleEstimateFieldChange = async (estimate: Estimate, field: 'eventDate' | 'deliveryStatus', value: string) => {
+    // Função que salva no Supabase
+    const saveEstimateField = async (estimate: Estimate, field: 'eventDate' | 'deliveryStatus', value: string) => {
         const updatedEstimate: Estimate = {
             ...estimate,
             [field]: value,
@@ -94,11 +106,44 @@ const Dashboard: React.FC<DashboardProps> = ({
         } catch (error: any) {
             console.error("Update error:", error);
             toast.error(error.message || 'Falha ao atualizar o orçamento.', { id: toastId });
+            // Se falhar, reverte o estado local para o valor original do estimate
+            if (field === 'eventDate') {
+                setEditingDates(prev => ({
+                    ...prev,
+                    [estimate.estimateId]: estimate.eventDate || ''
+                }));
+            }
         }
     };
 
+    // Handler para mudança de data (apenas atualiza o estado local)
+    const handleDateChange = (estimateId: string, value: string) => {
+        setEditingDates(prev => ({
+            ...prev,
+            [estimateId]: value
+        }));
+    };
+
+    // Handler para salvar a data quando o campo perde o foco
+    const handleDateBlur = (estimate: Estimate) => {
+        const currentValue = editingDates[estimate.estimateId];
+        // Só salva se o valor mudou
+        if (currentValue !== (estimate.eventDate || '')) {
+            saveEstimateField(estimate, 'eventDate', currentValue);
+        }
+    };
+
+    const handleDeliveryStatusChange = (estimate: Estimate, value: Estimate['deliveryStatus']) => {
+        saveEstimateField(estimate, 'deliveryStatus', value);
+    };
+
     const handleClearDate = (estimate: Estimate) => {
-        handleEstimateFieldChange(estimate, 'eventDate', '');
+        // Limpa o estado local e salva no DB
+        setEditingDates(prev => ({
+            ...prev,
+            [estimate.estimateId]: ''
+        }));
+        saveEstimateField(estimate, 'eventDate', '');
     };
 
 
@@ -137,13 +182,14 @@ const Dashboard: React.FC<DashboardProps> = ({
                                         <label className="block text-xs font-medium text-slate-500 mb-1">Data do Evento</label>
                                         <div className="relative flex items-center">
                                             <input
-                                                type="text" // Alterado para 'text' para permitir entrada livre
-                                                value={estimate.eventDate || ''}
-                                                onChange={(e) => handleEstimateFieldChange(estimate, 'eventDate', e.target.value)}
+                                                type="text"
+                                                value={editingDates[estimate.estimateId] || ''}
+                                                onChange={(e) => handleDateChange(estimate.estimateId, e.target.value)}
+                                                onBlur={() => handleDateBlur(estimate)} // Salva no DB ao perder o foco
                                                 placeholder="AAAA-MM-DD"
                                                 className="w-full p-2 border border-slate-300 rounded-md text-sm text-slate-700 pr-8"
                                             />
-                                            {estimate.eventDate && (
+                                            {editingDates[estimate.estimateId] && (
                                                 <button
                                                     onClick={() => handleClearDate(estimate)}
                                                     className="absolute right-0 top-0 bottom-0 px-2 text-slate-500 hover:text-red-500 transition"
@@ -158,7 +204,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                                         <label className="block text-xs font-medium text-slate-500 mb-1">Status da Entrega</label>
                                         <select
                                             value={estimate.deliveryStatus}
-                                            onChange={(e) => handleEstimateFieldChange(estimate, 'deliveryStatus', e.target.value as Estimate['deliveryStatus'])}
+                                            onChange={(e) => handleDeliveryStatusChange(estimate, e.target.value as Estimate['deliveryStatus'])}
                                             className={`w-full p-2 border rounded-md text-sm font-medium ${deliveryStatusOptions.find(opt => opt.value === estimate.deliveryStatus)?.className || 'bg-slate-100 text-slate-700 border-slate-300'}`}
                                         >
                                             {deliveryStatusOptions.map(opt => (
