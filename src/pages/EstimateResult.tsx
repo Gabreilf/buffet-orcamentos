@@ -1018,12 +1018,13 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                                     <tbody className="bg-white divide-y divide-slate-200">
                                       {menuItem.ingredients.map((item, itemIndex) => (
                                         <tr key={itemIndex} className="hover:bg-slate-50">
-                                          <td className="p-2 whitespace-normal">
+                                          {/* Removendo whitespace-nowrap da célula e garantindo que o input quebre linha */}
+                                          <td className="p-2">
                                             <input 
                                               type="text" 
                                               value={item.name} 
                                               onChange={(e) => handleItemChange(menuItemIndex, itemIndex, 'name', e.target.value)} 
-                                              className={`w-full bg-transparent p-1 rounded border text-sm ${isExporting ? 'border-transparent' : 'border-slate-300 focus:border-indigo-500 focus:ring-indigo-500'}`}
+                                              className={`w-full bg-transparent p-1 rounded border text-sm whitespace-normal ${isExporting ? 'border-transparent' : 'border-slate-300 focus:border-indigo-500 focus:ring-indigo-500'}`}
                                               readOnly={isExporting}
                                             />
                                           </td>
@@ -1135,7 +1136,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
             </div>
             
             {/* Resumo Financeiro INCLUÍDO na área de conteúdo para exportação */}
-            <div className="lg:hidden">
+            <div className="mt-8">
                 <FinancialSummary />
             </div>
         </div>
