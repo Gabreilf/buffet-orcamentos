@@ -7,7 +7,9 @@ const apiKey = import.meta.env.VITE_GEMINI_API_KEY as string;
 // Função para inicializar o cliente Gemini
 const getGeminiClient = () => {
     if (!apiKey) {
-        throw new Error("A chave da API Gemini (GEMINI_API_KEY) não está configurada. Por favor, verifique suas variáveis de ambiente.");
+        // Implementação da verificação dinâmica solicitada
+        alert("⚠️ A chave da API Gemini (GEMINI_API_KEY) não está configurada. Vá até as configurações e adicione sua chave para continuar.");
+        throw new Error("GEMINI_API_KEY ausente");
     }
     return new GoogleGenAI({ apiKey });
 };
@@ -109,6 +111,10 @@ export const testGeminiConnectivity = async (): Promise<boolean> => {
         return true;
     } catch (error) {
         console.error("Gemini API connection failed:", error);
+        // Se o erro for devido à chave ausente, o getGeminiClient já lançou o erro.
+        if (error instanceof Error && error.message === "GEMINI_API_KEY ausente") {
+            return false;
+        }
         return false;
     }
 };
@@ -145,8 +151,8 @@ export const generateMenuItemDetails = async (menuItemName: string, guests: numb
              throw new Error("A IA retornou um formato inválido ao calcular a receita. Tente novamente.");
         }
         // Se for um erro de chave, a função getGeminiClient já lançou uma mensagem clara.
-        if (error instanceof Error && error.message.includes("GEMINI_API_KEY")) {
-             throw error;
+        if (error instanceof Error && error.message.includes("GEMINI_API_KEY ausente")) {
+             throw new Error("A chave da API Gemini está ausente. Por favor, configure-a.");
         }
         throw new Error("Não foi possível calcular a receita. Verifique a chave da API e tente novamente.");
     }
@@ -209,8 +215,8 @@ export const generateEstimateFromText = async (text: string, customCosts: Custom
              throw new Error("A IA retornou um formato inválido. Tente novamente ou simplifique o pedido.");
         }
         // Se for um erro de chave, a função getGeminiClient já lançou uma mensagem clara.
-        if (error instanceof Error && error.message.includes("GEMINI_API_KEY")) {
-             throw error;
+        if (error instanceof Error && error.message.includes("GEMINI_API_KEY ausente")) {
+             throw new Error("A chave da API Gemini está ausente. Por favor, configure-a.");
         }
         throw new Error("Não foi possível gerar o orçamento. Verifique a chave da API e tente novamente.");
     }
