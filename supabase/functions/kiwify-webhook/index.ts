@@ -58,33 +58,53 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    let newPlan = "free";
-    let newIsActive = false;
+    let newPlanType: string = "trial";
+    let newQueryLimit: number | null = 3;
+    let newIsActive: boolean = false;
     let logMessage = `Evento Kiwify recebido: ${event} para ${email}.`;
     let shouldUpdate = false;
-    let updatePayload: { plan?: string, is_active?: boolean } = {};
+    let updatePayload: { plan_type?: string, query_limit?: number | null, is_active?: boolean, query_count?: number } = {};
 
     // 3️⃣ — Gerenciamento de Estados
     
-    // Define o plano com base no produto (usado em 'order.approved')
-    if (productName) {
-        if (productName.includes("197")) newPlan = "basic";
-        else if (productName.includes("497")) newPlan = "pro";
-    }
-
     if (event === "order.approved") {
-      // Pagamento aprovado: Ativa o plano e o status
+      // Lógica de mapeamento de planos baseada no nome do produto
+      if (productName && productName.toLowerCase().includes("start")) {
+        newPlanType = 'start';
+        newQueryLimit = 19;
+      } else if (productName && productName.toLowerCase().includes("pro")) {
+        newPlanType = 'pro';
+        newQueryLimit = null; // Ilimitado
+      } else {
+        // Se não for Start nem Pro, assume Trial (embora a aprovação de compra geralmente signifique um plano pago)
+        newPlanType = 'trial';
+        newQueryLimit = 3;
+      }
+        
+      // Pagamento aprovado: Ativa o status e reseta a contagem
       newIsActive = true;
-      logMessage = `✅ Venda Aprovada. Ativando plano ${newPlan} e is_active=true para ${email}.`;
+      logMessage = `✅ Venda Aprovada. Ativando plano ${newPlanType} (Limite: ${newQueryLimit === null ? 'Ilimitado' : newQueryLimit}) e is_active=true para ${email}.`;
       shouldUpdate = true;
-      updatePayload = { plan: newPlan, is_active: newIsActive };
+      updatePayload = { 
+          plan_type: newPlanType, 
+          query_limit: newQueryLimit, 
+          is_active: newIsActive,
+          query_count: 0 // Resetar contagem na aprovação
+      };
+      
     } else if (event === "subscription.cancelled" || event === "order.refunded") {
       // Assinatura cancelada ou reembolso: Volta para o plano free e desativa
-      newPlan = "free";
+      newPlanType = "trial";
+      newQueryLimit = 3;
       newIsActive = false;
-      logMessage = `❌ Acesso Suspenso (${event}). Revertendo plano para ${newPlan} e is_active=false para ${email}.`;
+      logMessage = `❌ Acesso Suspenso (${event}). Revertendo plano para ${newPlanType} e is_active=false para ${email}.`;
       shouldUpdate = true;
-      updatePayload = { plan: newPlan, is_active: newIsActive };
+      updatePayload = { 
+          plan_type: newPlanType, 
+          query_limit: newQueryLimit, 
+          is_active: newIsActive 
+      };
+      
     } else if (event === "order.pending" || event === "order.refused") {
         // Pagamento pendente ou recusado: Não faz nada.
         logMessage = `⚠️ Evento de status intermediário (${event}). Nenhuma alteração de plano ou status necessária.`;
@@ -117,16 +137,15 @@ serve(async (req) => {
         let finalUpdatePayload = updatePayload;
         
         // Se o usuário está sendo ativado (newIsActive=true) E o override manual está ativo,
-        // NÃO atualizamos o status de ativação (is_active), apenas o plano.
+        // NÃO atualizamos o status de ativação (is_active), apenas o plano e limites.
         if (newIsActive === true && currentManualOverride === true) {
             console.log(`AVISO: Tentativa de ativação automática bloqueada para ${email} devido a manual_override=true.`);
-            // Remove is_active do payload, mantendo o plano
+            // Remove is_active do payload, mantendo o plano e limites
             delete finalUpdatePayload.is_active;
         }
         
         // Se o usuário está sendo desativado (newIsActive=false) E o override manual está ativo,
         // PERMITIMOS a desativação (pois reembolso/cancelamento deve sempre suspender o acesso).
-        // Se o admin quiser reativar, ele terá que desativar o manual_override.
         if (newIsActive === false && currentManualOverride === true) {
             console.log(`INFO: Desativação automática permitida para ${email} apesar de manual_override=true (Evento: ${event}).`);
         }
@@ -134,7 +153,7 @@ serve(async (req) => {
         // Se o payload final estiver vazio, não há nada para atualizar
         if (Object.keys(finalUpdatePayload).length === 0) {
             console.log(`INFO: Nenhuma alteração de plano ou status necessária após verificação de override para ${email}.`);
-            return new Response(JSON.stringify({ received: true, event, plan: newPlan, status: "No change needed" }), {
+            return new Response(JSON.stringify({ received: true, event, plan_type: newPlanType, status: "No change needed" }), {
                 status: 200,
                 headers: { ...corsHeaders, "Content-Type": "application/json" },
             });
@@ -157,7 +176,7 @@ serve(async (req) => {
         console.log(`SUCESSO: Plano/Status de ${email} atualizado para ${JSON.stringify(finalUpdatePayload)}.`);
     }
 
-    return new Response(JSON.stringify({ received: true, event, plan: newPlan, is_active: newIsActive }), {
+    return new Response(JSON.stringify({ received: true, event, plan_type: newPlanType, is_active: newIsActive }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
