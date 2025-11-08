@@ -7,6 +7,9 @@ interface UserWithProfile extends User {
   profile: {
     is_active: boolean;
     plan: string;
+    plan_type: 'trial' | 'basic' | 'pro'; // Adicionado
+    query_count: number; // Adicionado
+    query_limit: number | null; // Adicionado
     // Adicione outros campos do perfil que você precisa
   } | null;
 }
@@ -21,7 +24,7 @@ interface AuthState {
 const fetchUserProfile = async (user: User): Promise<UserWithProfile> => {
     const { data, error } = await supabase
         .from('profiles')
-        .select('is_active, plan')
+        .select('is_active, plan, plan_type, query_count, query_limit') // Campos atualizados
         .eq('id', user.id)
         .single();
 

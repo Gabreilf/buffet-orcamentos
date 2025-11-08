@@ -1,5 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Estimate, CustomCost, MenuItemDetail } from '../types';
+import { supabase } from '../integrations/supabase/client'; // Importando o cliente Supabase
 
 // A chave da API é injetada pelo Vite/Vercel através do define no vite.config.ts
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY as string;
@@ -13,6 +14,53 @@ const getGeminiClient = () => {
     }
     return new GoogleGenAI({ apiKey });
 };
+
+/**
+ * Verifica o limite de consultas do usuário e incrementa a contagem se permitido.
+ * @throws {Error} Se o usuário não estiver autenticado ou o limite for atingido.
+ */
+const checkAndIncrementQueryCount = async () => {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+        throw new Error("Usuário não autenticado. Faça login para gerar orçamentos.");
+    }
+
+    const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('query_count, query_limit, plan_type, is_active')
+        .eq('id', user.id)
+        .single();
+
+    if (profileError || !profile) {
+        console.error("Erro ao buscar perfil:", profileError);
+        throw new Error("Perfil de usuário não encontrado ou erro de acesso.");
+    }
+    
+    // Lógica de verificação de limite
+    const isTrialExpired = profile.plan_type === 'trial' && profile.query_count >= profile.query_limit;
+    
+    if (!profile.is_active && isTrialExpired) {
+        throw new Error("Seu período de teste terminou. Ative um plano para continuar.");
+    }
+
+    // Se query_limit for null, é ilimitado. Caso contrário, verifica o limite.
+    if (profile.query_limit !== null && profile.query_count >= profile.query_limit) {
+        throw new Error("Você atingiu o limite de consultas do seu plano. Faça upgrade para continuar.");
+    }
+
+    // Incrementa a contagem de consultas
+    const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ query_count: profile.query_count + 1 })
+        .eq('id', user.id);
+
+    if (updateError) {
+        console.error("Erro ao incrementar query_count:", updateError);
+        // Não lançamos um erro fatal aqui, apenas logamos, para não bloquear a IA se o DB falhar na atualização.
+    }
+};
+
 
 const menuItemSchema = {
     type: Type.OBJECT,
@@ -123,6 +171,9 @@ export const testGeminiConnectivity = async (): Promise<boolean> => {
  * Gera os detalhes de ingredientes e custos para um único item de menu.
  */
 export const generateMenuItemDetails = async (menuItemName: string, guests: number): Promise<MenuItemDetail> => {
+    // 1. Verifica e incrementa o contador antes de chamar a IA
+    await checkAndIncrementQueryCount();
+    
     try {
         const ai = getGeminiClient();
         
@@ -154,12 +205,19 @@ export const generateMenuItemDetails = async (menuItemName: string, guests: numb
         if (error instanceof Error && error.message.includes("GEMINI_API_KEY ausente")) {
              throw new Error("A chave da API Gemini está ausente. Por favor, configure-a.");
         }
+        // Propaga erros de limite de consulta
+        if (error instanceof Error && (error.message.includes("limite de consultas") || error.message.includes("período de teste"))) {
+             throw error;
+        }
         throw new Error("Não foi possível calcular a receita. Verifique a chave da API e tente novamente.");
     }
 };
 
 
 export const generateEstimateFromText = async (text: string, customCosts: CustomCost[]): Promise<Estimate> => {
+    // 1. Verifica e incrementa o contador antes de chamar a IA
+    await checkAndIncrementQueryCount();
+    
     try {
         const ai = getGeminiClient();
         
@@ -217,6 +275,10 @@ export const generateEstimateFromText = async (text: string, customCosts: Custom
         // Se for um erro de chave, a função getGeminiClient já lançou uma mensagem clara.
         if (error instanceof Error && error.message.includes("GEMINI_API_KEY ausente")) {
              throw new Error("A chave da API Gemini está ausente. Por favor, configure-a.");
+        }
+        // Propaga erros de limite de consulta
+        if (error instanceof Error && (error.message.includes("limite de consultas") || error.message.includes("período de teste"))) {
+             throw error;
         }
         throw new Error("Não foi possível gerar o orçamento. Verifique a chave da API e tente novamente.");
     }
