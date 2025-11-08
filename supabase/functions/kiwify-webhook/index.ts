@@ -59,8 +59,10 @@ serve(async (req) => {
     );
 
     let newPlan = "free";
+    let newIsActive = false;
     let logMessage = `Evento Kiwify recebido: ${event} para ${email}.`;
     let shouldUpdate = false;
+    let updatePayload: { plan?: string, is_active?: boolean } = {};
 
     // 3️⃣ — Gerenciamento de Estados
     
@@ -71,22 +73,21 @@ serve(async (req) => {
     }
 
     if (event === "order.approved") {
-      // Pagamento aprovado: Ativa o plano
-      logMessage = `✅ Venda Aprovada. Ativando plano ${newPlan} para ${email}.`;
+      // Pagamento aprovado: Ativa o plano e o status
+      newIsActive = true;
+      logMessage = `✅ Venda Aprovada. Ativando plano ${newPlan} e is_active=true para ${email}.`;
       shouldUpdate = true;
-    } else if (event === "subscription.cancelled") {
-      // Assinatura cancelada: Volta para o plano free
+      updatePayload = { plan: newPlan, is_active: newIsActive };
+    } else if (event === "subscription.cancelled" || event === "order.refunded") {
+      // Assinatura cancelada ou reembolso: Volta para o plano free e desativa
       newPlan = "free";
-      logMessage = `❌ Assinatura Cancelada. Revertendo plano para ${newPlan} para ${email}.`;
+      newIsActive = false;
+      logMessage = `❌ Acesso Suspenso (${event}). Revertendo plano para ${newPlan} e is_active=false para ${email}.`;
       shouldUpdate = true;
-    } else if (event === "order.refunded") {
-      // Reembolso: Volta para o plano free (acesso suspenso)
-      newPlan = "free";
-      logMessage = `💸 Reembolso Processado. Revertendo plano para ${newPlan} para ${email}.`;
-      shouldUpdate = true;
+      updatePayload = { plan: newPlan, is_active: newIsActive };
     } else if (event === "order.pending" || event === "order.refused") {
-        // Pagamento pendente ou recusado: Não faz nada, o usuário permanece no plano atual (geralmente 'free')
-        logMessage = `⚠️ Evento de status intermediário (${event}). Nenhuma alteração de plano necessária.`;
+        // Pagamento pendente ou recusado: Não faz nada.
+        logMessage = `⚠️ Evento de status intermediário (${event}). Nenhuma alteração de plano ou status necessária.`;
         shouldUpdate = false;
     } else {
         logMessage = `ℹ️ Evento desconhecido (${event}). Ignorando.`;
@@ -96,24 +97,67 @@ serve(async (req) => {
     console.log(logMessage);
 
     if (shouldUpdate) {
-        // Atualiza o plano no Supabase (tabela 'profiles')
+        // 4️⃣ — Lógica de Manual Override
+        
+        // 4.1 Busca o estado atual do perfil
+        const { data: profile, error: fetchError } = await supabaseClient
+            .from("profiles")
+            .select("manual_override, is_active")
+            .eq("email", email)
+            .single();
+
+        if (fetchError) {
+            console.error(`ERRO DE DB: Falha ao buscar perfil para ${email}:`, fetchError.message);
+            // Continua a tentativa de atualização, mas loga o erro
+        }
+        
+        const currentManualOverride = profile?.manual_override ?? false;
+        const currentIsActive = profile?.is_active ?? false;
+
+        let finalUpdatePayload = updatePayload;
+        
+        // Se o usuário está sendo ativado (newIsActive=true) E o override manual está ativo,
+        // NÃO atualizamos o status de ativação (is_active), apenas o plano.
+        if (newIsActive === true && currentManualOverride === true) {
+            console.log(`AVISO: Tentativa de ativação automática bloqueada para ${email} devido a manual_override=true.`);
+            // Remove is_active do payload, mantendo o plano
+            delete finalUpdatePayload.is_active;
+        }
+        
+        // Se o usuário está sendo desativado (newIsActive=false) E o override manual está ativo,
+        // PERMITIMOS a desativação (pois reembolso/cancelamento deve sempre suspender o acesso).
+        // Se o admin quiser reativar, ele terá que desativar o manual_override.
+        if (newIsActive === false && currentManualOverride === true) {
+            console.log(`INFO: Desativação automática permitida para ${email} apesar de manual_override=true (Evento: ${event}).`);
+        }
+        
+        // Se o payload final estiver vazio, não há nada para atualizar
+        if (Object.keys(finalUpdatePayload).length === 0) {
+            console.log(`INFO: Nenhuma alteração de plano ou status necessária após verificação de override para ${email}.`);
+            return new Response(JSON.stringify({ received: true, event, plan: newPlan, status: "No change needed" }), {
+                status: 200,
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+        }
+
+        // 5️⃣ — Atualiza o plano e/ou status no Supabase
         const { error } = await supabaseClient
             .from("profiles")
-            .update({ plan: newPlan })
+            .update(finalUpdatePayload)
             .eq("email", email);
 
         if (error) {
-            console.error(`ERRO DE DB: Falha ao atualizar plano para ${email} no Supabase:`, error.message);
+            console.error(`ERRO DE DB: Falha ao atualizar plano/status para ${email} no Supabase:`, error.message);
             // Retorna 500 para que a Kiwify possa tentar novamente (se configurado)
             return new Response(JSON.stringify({ error: "Database update failed" }), {
                 status: 500,
                 headers: { ...corsHeaders, "Content-Type": "application/json" },
             });
         }
-        console.log(`SUCESSO: Plano de ${email} atualizado para ${newPlan}.`);
+        console.log(`SUCESSO: Plano/Status de ${email} atualizado para ${JSON.stringify(finalUpdatePayload)}.`);
     }
 
-    return new Response(JSON.stringify({ received: true, event, plan: newPlan }), {
+    return new Response(JSON.stringify({ received: true, event, plan: newPlan, is_active: newIsActive }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

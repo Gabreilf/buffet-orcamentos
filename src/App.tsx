@@ -11,8 +11,20 @@ import { useAuth } from './hooks/useAuth';
 
 type Page = 'dashboard' | 'new_estimate' | 'estimate_result';
 
+const AccessDenied: React.FC = () => (
+    <div className="max-w-xl mx-auto mt-10 p-8 bg-white rounded-xl shadow-2xl text-center border border-red-200">
+        <h2 className="text-3xl font-bold text-red-600 mb-4">Acesso Bloqueado</h2>
+        <p className="text-slate-700 mb-6">
+            Sua conta está inativa. Isso pode ocorrer devido a um pagamento pendente, cancelamento ou reembolso.
+        </p>
+        <p className="text-sm text-slate-500">
+            Por favor, verifique o status do seu pagamento ou entre em contato com o suporte para reativar sua conta.
+        </p>
+    </div>
+);
+
 const App: React.FC = () => {
-  const { session, isLoading: isAuthLoading } = useAuth();
+  const { session, user, isLoading: isAuthLoading } = useAuth();
   const [currentPage, setCurrentPage] = useState<Page>('dashboard');
   const [activeEstimate, setActiveEstimate] = useState<Estimate | null>(null);
   const [estimates, setEstimates] = useState<Estimate[]>([]);
@@ -59,14 +71,14 @@ const App: React.FC = () => {
 
   // Recarrega orçamentos quando a sessão muda (login/logout)
   useEffect(() => {
-    if (session) {
+    if (session && user?.profile?.is_active) {
         loadEstimates();
     } else if (!isAuthLoading) {
-        // Se não houver sessão e a autenticação terminou de carregar, limpa o estado
+        // Se não houver sessão ou se o usuário estiver inativo e a autenticação terminou de carregar, limpa o estado
         setEstimates([]);
         setIsLoading(false);
     }
-  }, [session, isAuthLoading, loadEstimates]);
+  }, [session, user, isAuthLoading, loadEstimates]);
 
   const handleCreateNewEstimate = () => {
     setActiveEstimate(null);
@@ -101,6 +113,12 @@ const App: React.FC = () => {
 
     if (!session) {
         return <Login />;
+    }
+    
+    // 3. Verificação de Ativação
+    if (user && user.profile && !user.profile.is_active) {
+        console.log("LOG: Login bloqueado. Usuário inativo.");
+        return <AccessDenied />;
     }
     
     if (isLoading) {
