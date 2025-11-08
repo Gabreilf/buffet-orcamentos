@@ -4,21 +4,36 @@ import Dashboard from './pages/Dashboard';
 import NewEstimate from './pages/NewEstimate';
 import EstimateResult from './pages/EstimateResult';
 import Login from './pages/Login';
+import Plans from './pages/Plans'; // Importando a nova página
 import Header from './components/Header';
 import { fetchEstimates } from './services/estimateService';
 import Spinner from './components/Spinner';
 import { useAuth } from './hooks/useAuth';
 
-type Page = 'dashboard' | 'new_estimate' | 'estimate_result';
+type Page = 'dashboard' | 'new_estimate' | 'estimate_result' | 'plans'; // Adicionando 'plans'
 
-const AccessDenied: React.FC = () => (
+interface AccessDeniedProps {
+    message: string;
+    showPlansButton: boolean;
+    onViewPlans: () => void;
+}
+
+const AccessDenied: React.FC<AccessDeniedProps> = ({ message, showPlansButton, onViewPlans }) => (
     <div className="max-w-xl mx-auto mt-10 p-8 bg-white rounded-xl shadow-2xl text-center border border-red-200">
         <h2 className="text-3xl font-bold text-red-600 mb-4">Acesso Bloqueado</h2>
         <p className="text-slate-700 mb-6">
-            Sua conta está inativa. Isso pode ocorrer devido a um pagamento pendente, cancelamento ou reembolso.
+            {message}
         </p>
-        <p className="text-sm text-slate-500">
-            Por favor, verifique o status do seu pagamento ou entre em contato com o suporte para reativar sua conta.
+        {showPlansButton && (
+            <button
+                onClick={onViewPlans}
+                className="bg-indigo-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-indigo-700 transition duration-300 ease-in-out shadow-lg"
+            >
+                Ver Planos de Assinatura
+            </button>
+        )}
+        <p className="text-sm text-slate-500 mt-4">
+            Por favor, verifique o status do seu pagamento ou entre em contato com o suporte.
         </p>
     </div>
 );
@@ -96,6 +111,10 @@ const App: React.FC = () => {
     // Reload estimates when returning to dashboard to ensure fresh data
     loadEstimates(); 
   };
+  
+  const handleViewPlans = () => {
+      setCurrentPage('plans');
+  };
 
   const handleEstimateGenerated = (estimate: Estimate) => {
     setActiveEstimate(estimate);
@@ -115,10 +134,34 @@ const App: React.FC = () => {
         return <Login />;
     }
     
-    // 3. Verificação de Ativação
-    if (user && user.profile && !user.profile.is_active) {
+    // Lógica de verificação de limite de trial
+    const profile = user?.profile;
+    const isTrialExpired = profile && profile.plan_type === 'trial' && profile.query_count >= profile.query_limit;
+    
+    // 3. Verificação de Ativação (Bloqueio por Inatividade ou Trial Expirado)
+    if (profile && !profile.is_active) {
         console.log("LOG: Login bloqueado. Usuário inativo.");
-        return <AccessDenied />;
+        return (
+            <AccessDenied 
+                message="Sua conta está inativa. Isso pode ocorrer devido a um pagamento pendente, cancelamento ou reembolso."
+                showPlansButton={false}
+                onViewPlans={handleViewPlans}
+            />
+        );
+    }
+    
+    if (isTrialExpired) {
+        console.log("LOG: Login bloqueado. Trial expirado.");
+        // Se o usuário está no trial e atingiu o limite, bloqueia o acesso ao dashboard/new_estimate
+        if (currentPage !== 'plans') {
+            return (
+                <AccessDenied 
+                    message={`Seu período de teste (limite de ${profile.query_limit} consultas) terminou. Ative um plano para continuar.`}
+                    showPlansButton={true}
+                    onViewPlans={handleViewPlans}
+                />
+            );
+        }
     }
     
     if (isLoading) {
@@ -135,6 +178,8 @@ const App: React.FC = () => {
       case 'estimate_result':
         // Usamos a key para forçar a remontagem do componente EstimateResult sempre que o orçamento ativo mudar.
         return activeEstimate ? <EstimateResult key={activeEstimate.estimateId} estimate={activeEstimate} onEstimateSaved={loadEstimates} /> : <Dashboard estimates={estimates} onCreateNew={handleCreateNewEstimate} onView={handleViewEstimate} customCosts={customCosts} onCustomCostsChange={setCustomCosts} onEstimateUpdated={handleEstimateUpdated} />;
+      case 'plans':
+          return <Plans />;
       case 'dashboard':
       default:
         return <Dashboard estimates={estimates} onCreateNew={handleCreateNewEstimate} onView={handleViewEstimate} customCosts={customCosts} onCustomCostsChange={setCustomCosts} onEstimateUpdated={handleEstimateUpdated} />;
