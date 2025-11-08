@@ -4,13 +4,13 @@ import Dashboard from './pages/Dashboard';
 import NewEstimate from './pages/NewEstimate';
 import EstimateResult from './pages/EstimateResult';
 import Login from './pages/Login';
-import Plans from './pages/Plans'; // Importando a nova página
+import ProfileAndPlans from './pages/ProfileAndPlans'; // Importando a nova página
 import Header from './components/Header';
 import { fetchEstimates } from './services/estimateService';
 import Spinner from './components/Spinner';
 import { useAuth } from './hooks/useAuth';
 
-type Page = 'dashboard' | 'new_estimate' | 'estimate_result' | 'plans'; // Adicionando 'plans'
+type Page = 'dashboard' | 'new_estimate' | 'estimate_result' | 'plans'; // Mantendo 'plans' como nome da rota
 
 interface AccessDeniedProps {
     message: string;
@@ -179,7 +179,7 @@ const App: React.FC = () => {
         // Usamos a key para forçar a remontagem do componente EstimateResult sempre que o orçamento ativo mudar.
         return activeEstimate ? <EstimateResult key={activeEstimate.estimateId} estimate={activeEstimate} onEstimateSaved={loadEstimates} /> : <Dashboard estimates={estimates} onCreateNew={handleCreateNewEstimate} onView={handleViewEstimate} customCosts={customCosts} onCustomCostsChange={setCustomCosts} onEstimateUpdated={handleEstimateUpdated} />;
       case 'plans':
-          return <Plans />;
+          return <ProfileAndPlans />;
       case 'dashboard':
       default:
         return <Dashboard estimates={estimates} onCreateNew={handleCreateNewEstimate} onView={handleViewEstimate} customCosts={customCosts} onCustomCostsChange={setCustomCosts} onEstimateUpdated={handleEstimateUpdated} />;
