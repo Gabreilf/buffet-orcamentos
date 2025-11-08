@@ -186,9 +186,16 @@ const App: React.FC = () => {
     }
   };
 
+  const currentPlanName = user?.profile?.plan || 'Trial';
+
   return (
     <div className="min-h-screen bg-slate-100 font-sans">
-      <Header onLogoClick={handleShowDashboard} session={session} onProfileClick={handleViewPlans} />
+      <Header 
+        onLogoClick={handleShowDashboard} 
+        session={session} 
+        onProfileClick={handleViewPlans} 
+        currentPlanName={currentPlanName} // Passando o nome do plano
+      />
       <main className="p-4 sm:p-6 md:p-8">
         {renderPage()}
       </main>

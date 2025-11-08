@@ -28,7 +28,7 @@ interface AuthState {
 const fetchUserProfile = async (user: User): Promise<UserWithProfile> => {
     const { data, error } = await supabase
         .from('profiles')
-        .select('is_active, plan, plan_type, query_count, query_limit, first_name, last_name, avatar_url, email, manual_override') // Campos atualizados
+        .select('is_active, plan_type, query_count, query_limit, first_name, last_name, avatar_url, email, manual_override') // Removendo 'plan' que não existe no schema, usando 'plan_type'
         .eq('id', user.id)
         .single();
 
@@ -37,7 +37,20 @@ const fetchUserProfile = async (user: User): Promise<UserWithProfile> => {
         return { ...user, profile: null };
     }
     
-    return { ...user, profile: data };
+    // Mapeia plan_type para um nome de plano amigável
+    const planNameMap: Record<string, string> = {
+        'trial': 'Trial',
+        'start': 'Start',
+        'pro': 'Pro',
+        'basic': 'Básico',
+    };
+    
+    const profileData = {
+        ...data,
+        plan: planNameMap[data.plan_type] || 'Trial', // Adiciona o campo 'plan' mapeado
+    };
+    
+    return { ...user, profile: profileData };
 };
 
 
