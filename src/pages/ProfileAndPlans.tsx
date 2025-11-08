@@ -124,7 +124,7 @@ const ProfileAndPlans: React.FC = () => {
             features: [
                 "Acesso completo ao gerador de orçamentos IA",
                 "19 consultas por mês",
-                "Suporte prioritário via WhatsApp", // Atualizado
+                "Suporte prioritário via WhatsApp",
                 "Exportação de dados (CSV)"
             ],
             checkoutUrl: KIWIFY_CHECKOUT_START,
@@ -140,7 +140,8 @@ const ProfileAndPlans: React.FC = () => {
                 "Tudo do Plano Start",
                 "Consultas ilimitadas à IA",
                 "Novos recursos beta antecipados",
-                "Suporte VIP via WhatsApp" // Atualizado
+                "Suporte VIP via WhatsApp",
+                "Avaliação estratégica de marketing para seu negócio" // Novo benefício
             ],
             checkoutUrl: KIWIFY_CHECKOUT_PRO,
             icon: Infinity,
@@ -295,7 +296,7 @@ const ProfileAndPlans: React.FC = () => {
                                 <div className="mb-8">
                                     <p className="text-5xl font-extrabold text-indigo-600">
                                         {plan.price}
-                                        <span className="text-xl font-medium text-slate-500 ml-2">/ mês</span> {/* Alterado para / mês */}
+                                        <span className="text-xl font-medium text-slate-500 ml-2">/ mês</span>
                                     </p>
                                     <p className="text-sm text-slate-600 mt-1 font-semibold">{plan.limit}</p>
                                 </div>
@@ -326,8 +327,6 @@ const ProfileAndPlans: React.FC = () => {
                     </div>
                 </div>
             </div>
-            
-            {/* Removendo a nota de rodapé sobre pagamento único */}
         </div>
     );
 };
