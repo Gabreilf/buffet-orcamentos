@@ -1,9 +1,9 @@
 import React from 'react';
 import { Check, Infinity, Zap } from 'lucide-react';
 
-// URLs de Checkout da Kiwify (PLACEHOLDERS - SUBSTITUA PELOS LINKS REAIS)
-const KIWIFY_CHECKOUT_START = "https://kiwify.com.br/checkout/start-plan-197";
-const KIWIFY_CHECKOUT_PRO = "https://kiwify.com.br/checkout/pro-plan-497";
+// URLs de Checkout da Kiwify (ATUALIZADOS)
+const KIWIFY_CHECKOUT_START = "https://pay.kiwify.com.br/PGgKZs3";
+const KIWIFY_CHECKOUT_PRO = "https://pay.kiwify.com.br/HOyKZsm";
 
 const Plans: React.FC = () => {
     const plans = [
