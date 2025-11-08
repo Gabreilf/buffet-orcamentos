@@ -14,12 +14,14 @@
     "@supabase/auth-ui-shared": "^0.1.8",
     "@supabase/supabase-js": "^2.78.0",
     "lucide-react": "^0.552.0",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "react-hot-toast": "^2.6.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
+    "@types/react": "^18.2.66",
+    "@types/react-dom": "^18.2.22",
     "@vitejs/plugin-react": "^5.0.0",
     "typescript": "~5.8.2",
     "vite": "^6.2.0"
