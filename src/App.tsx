@@ -188,7 +188,7 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-100 font-sans">
-      <Header onLogoClick={handleShowDashboard} session={session} />
+      <Header onLogoClick={handleShowDashboard} session={session} onProfileClick={handleViewPlans} />
       <main className="p-4 sm:p-6 md:p-8">
         {renderPage()}
       </main>
