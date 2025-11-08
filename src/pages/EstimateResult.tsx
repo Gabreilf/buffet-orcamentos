@@ -325,6 +325,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
   const handleStructuredPremiseChange = (id: string, field: keyof Omit<StructuredPremise, 'id'>, value: string | number) => {
       let newAverages: StructuredPremise[] = [];
       
+      // 1. Atualiza o estado local estruturado das premissas
       setStructuredAverages(prev => {
           newAverages = prev.map(p => {
               if (p.id === id) {
@@ -338,45 +339,47 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
           return newAverages;
       });
       
-      // 1. Sincroniza de volta para o estado principal do Estimate (string array)
-      setEstimate(prevEst => {
-          const serializedAverages = serializePremises(newAverages);
-          
-          // 2. Recalcula as quantidades dos ingredientes
-          const updatedMenuItems = prevEst.menuItems.map(menuItem => ({
-              ...menuItem,
-              ingredients: menuItem.ingredients.map(ingredient => {
-                  const premise = newAverages.find(p => 
-                      ingredient.name.toLowerCase().includes(p.item.toLowerCase()) && p.quantity > 0
-                  );
+      // 2. Calcula o novo estado do Estimate (prevEst é o estado atual do hook useUndoRedo)
+      const prevEst = estimate;
+      const serializedAverages = serializePremises(newAverages);
+      
+      // 3. Recalcula as quantidades dos ingredientes
+      const updatedMenuItems = prevEst.menuItems.map(menuItem => ({
+          ...menuItem,
+          ingredients: menuItem.ingredients.map(ingredient => {
+              const premise = newAverages.find(p => 
+                  ingredient.name.toLowerCase().includes(p.item.toLowerCase()) && p.quantity > 0
+              );
+              
+              if (premise) {
+                  // Se a premissa for encontrada, recalcula a quantidade total (qty)
+                  // Nota: Assumimos que a unidade da premissa (p.unit) é a mesma unidade do ingrediente (ingredient.unit)
+                  const newQty = premise.quantity * prevEst.guests;
+                  const newTotalCost = newQty * ingredient.unitCost;
                   
-                  if (premise) {
-                      // Se a premissa for encontrada, recalcula a quantidade total (qty)
-                      // Nota: Assumimos que a unidade da premissa (p.unit) é a mesma unidade do ingrediente (ingredient.unit)
-                      const newQty = premise.quantity * prevEst.guests;
-                      const newTotalCost = newQty * ingredient.unitCost;
-                      
-                      return {
-                          ...ingredient,
-                          qty: newQty,
-                          totalCost: newTotalCost,
-                          unit: premise.unit, // Atualiza a unidade do ingrediente para corresponder à premissa
-                      };
-                  }
-                  return ingredient;
-              })
-          }));
-          
-          // 3. Recalcula os totais financeiros com os novos ingredientes
-          const newTotals = recalculateTotals(updatedMenuItems, prevEst.totals.otherCosts || [], prevEst.totals.laborDetails || []);
-          
-          return {
-              ...prevEst,
-              consumptionAverages: serializedAverages,
-              menuItems: updatedMenuItems,
-              totals: newTotals,
-          };
-      }, false); // Não adiciona ao histórico a cada mudança de premissa
+                  return {
+                      ...ingredient,
+                      qty: newQty,
+                      totalCost: newTotalCost,
+                      unit: premise.unit, // Atualiza a unidade do ingrediente para corresponder à premissa
+                  };
+              }
+              return ingredient;
+          })
+      }));
+      
+      // 4. Recalcula os totais financeiros com os novos ingredientes
+      const newTotals = recalculateTotals(updatedMenuItems, prevEst.totals.otherCosts || [], prevEst.totals.laborDetails || []);
+      
+      const newEstimate = {
+          ...prevEst,
+          consumptionAverages: serializedAverages,
+          menuItems: updatedMenuItems,
+          totals: newTotals,
+      };
+      
+      // 5. Atualiza o estado principal do Estimate (sem adicionar ao histórico)
+      setEstimate(newEstimate, false);
   };
 
   const handleSavePremises = () => {
