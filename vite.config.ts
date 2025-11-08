@@ -6,7 +6,7 @@ export default defineConfig(({ mode }) => {
     // Carrega variáveis de ambiente do .env e .env.local
     const env = loadEnv(mode, '.', '');
     
-    // Define a chave da API Gemini para ser acessível no código como process.env.API_KEY
+    // Define a chave da API Gemini para ser acessível no código como import.meta.env.VITE_GEMINI_API_KEY
     const geminiApiKey = env.GEMINI_API_KEY || '';
 
     return {
@@ -19,7 +19,7 @@ export default defineConfig(({ mode }) => {
       plugins: [react()],
       define: {
         // Injeta a chave da API Gemini
-        'process.env.API_KEY': JSON.stringify(geminiApiKey),
+        'import.meta.env.VITE_GEMINI_API_KEY': JSON.stringify(geminiApiKey),
         // Injeta as chaves Supabase para o cliente
         'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(env.VITE_SUPABASE_URL),
         'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(env.VITE_SUPABASE_ANON_KEY),

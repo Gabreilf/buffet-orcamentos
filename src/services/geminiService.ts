@@ -2,7 +2,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { Estimate, CustomCost, MenuItemDetail } from '../types';
 
 // A chave da API é injetada pelo Vite/Vercel através do define no vite.config.ts
-const apiKey = process.env.API_KEY as string;
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY as string;
 
 // Função para inicializar o cliente Gemini
 const getGeminiClient = () => {
