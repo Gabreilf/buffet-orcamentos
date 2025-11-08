@@ -21,7 +21,8 @@ const Header: React.FC<HeaderProps> = ({ onLogoClick, session }) => {
   return (
     <header className="bg-white shadow-md">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex items-center justify-center h-16 relative">
+          {/* Logo e Título Centralizados */}
           <div 
             className="flex items-center cursor-pointer"
             onClick={onLogoClick}
@@ -31,24 +32,18 @@ const Header: React.FC<HeaderProps> = ({ onLogoClick, session }) => {
               Orça<span className="text-indigo-600">Buffet</span>
             </h1>
           </div>
-          <div className="flex items-center space-x-4">
-            {session ? (
-              <>
-                <span className="text-sm font-medium text-slate-500 hidden sm:inline">
-                  {session.user.email}
-                </span>
-                <button
-                  onClick={handleLogout}
-                  className="text-sm font-medium text-red-500 hover:text-red-700 transition"
-                >
-                  Sair
-                </button>
-              </>
-            ) : (
-              <span className="text-sm font-medium text-slate-500">Buffet XYZ</span>
-            )}
-            <img className="h-8 w-8 rounded-full" src="https://picsum.photos/100" alt="User Avatar" />
-          </div>
+          
+          {/* Botão de Sair (Alinhado à direita, se houver sessão) */}
+          {session && (
+            <div className="absolute right-4 sm:right-6 lg:right-8">
+              <button
+                onClick={handleLogout}
+                className="text-sm font-medium text-red-500 hover:text-red-700 transition"
+              >
+                Sair
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </header>
