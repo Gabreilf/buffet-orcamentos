@@ -192,6 +192,9 @@ const App: React.FC = () => {
   };
 
   const currentPlanName = user?.profile?.plan || 'Teste';
+  
+  // Define se o botão de voltar deve ser exibido
+  const showBackButton = currentPage !== 'dashboard';
 
   return (
     <div className="min-h-screen bg-slate-100 font-sans">
@@ -200,6 +203,7 @@ const App: React.FC = () => {
         session={session} 
         onProfileClick={handleViewPlans} 
         currentPlanName={currentPlanName} // Passando o nome do plano
+        onBackClick={showBackButton ? handleShowDashboard : undefined} // Passa a função se não estiver no dashboard
       />
       <main className="p-4 sm:p-6 md:p-8">
         {renderPage()}
