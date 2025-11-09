@@ -6,8 +6,11 @@ interface UndoRedoState<T> {
   future: T[];
 }
 
+// Definindo o tipo para o setter, que pode ser T ou uma função que recebe T e retorna T
+type SetStateAction<T> = T | ((prevState: T) => T);
+
 interface UndoRedoActions<T> {
-  set: (newPresent: T, addToHistory?: boolean) => void;
+  set: (newPresent: SetStateAction<T>, addToHistory?: boolean) => void;
   undo: () => void;
   redo: () => void;
   canUndo: boolean;
@@ -29,9 +32,14 @@ export const useUndoRedo = <T>(initialState: T): [T, UndoRedoActions<T>] => {
   const stateRef = useRef(state);
   stateRef.current = state;
 
-  const set = useCallback((newPresent: T, addToHistory: boolean = true) => {
+  const set = useCallback((newPresentAction: SetStateAction<T>, addToHistory: boolean = true) => {
     const currentState = stateRef.current;
     
+    // Resolve o novo estado se for uma função
+    const newPresent = typeof newPresentAction === 'function' 
+        ? (newPresentAction as (prevState: T) => T)(currentState.present) 
+        : newPresentAction;
+
     // Se o novo estado for idêntico ao atual, não faz nada
     if (newPresent === currentState.present) return;
 
