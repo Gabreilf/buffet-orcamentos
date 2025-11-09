@@ -49,13 +49,27 @@ const parseDateParts = (dateString: string | undefined): DateParts => {
 const ensureUniqueIds = (estimate: Estimate): Estimate => {
     const newEstimate = JSON.parse(JSON.stringify(estimate));
     
-    // 1. OtherCosts
+    // 1. Garante que totals existe e está completo
+    if (!newEstimate.totals) {
+        newEstimate.totals = {
+            ingredients: 0,
+            labor: 0,
+            otherCosts: [],
+            tax: 0,
+            totalCost: 0,
+            suggestedPrice: 0,
+            laborDetails: [],
+            productionCost: 0,
+        } as EstimateTotals;
+    }
+    
+    // 2. OtherCosts: Garante que é um array e adiciona IDs
     newEstimate.totals.otherCosts = (newEstimate.totals.otherCosts || []).map((cost: OtherCost) => ({
         ...cost,
         id: cost.id || `other-${Date.now()}-${Math.random()}`,
     }));
     
-    // 2. LaborDetails
+    // 3. LaborDetails: Garante que é um array e adiciona IDs
     newEstimate.totals.laborDetails = (newEstimate.totals.laborDetails || []).map((detail: LaborDetail) => ({
         ...detail,
         id: detail.id || `labor-${Date.now()}-${Math.random()}`,
