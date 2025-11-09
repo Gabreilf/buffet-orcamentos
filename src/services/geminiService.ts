@@ -34,6 +34,7 @@ const checkAndIncrementQueryCount = async () => {
 
     if (profileError || !profile) {
         console.error("Erro ao buscar perfil:", profileError);
+        // CORREÇÃO: Removendo 'new' duplicado
         throw new Error("Perfil de usuário não encontrado ou erro de acesso.");
     }
     
@@ -238,7 +239,7 @@ export const generateEstimateFromText = async (text: string, customCosts: Custom
             
             Regras de Cálculo:
             1.  **Ingredientes**: Baseie as quantidades na sua vasta base de conhecimento sobre receitas e porções por pessoa. Agrupe os ingredientes sob seu respectivo prato no campo 'menuItems'.
-            2.  **Mão de obra**: Estime a equipe necessária usando os custos personalizados fornecidos que se aplicam (ex: Garçom, Cozinheira). Inclua outros custos personalizados onde fizer sentido (ex: Marketing). Detalhe cada função (role, count, costPerUnit, totalCost).
+            2.  **Mão de obra**: Estime a equipe necessária usando os custos personalizados fornecidos que se aplicam (ex: Garçom, Cozinheiro). Inclua outros custos personalizados onde fizer sentido (ex: Marketing). Detalhe cada função (role, count, costPerUnit, totalCost).
             3.  **Custo de Produção**: Calcule como a soma do Custo de Ingredientes + o custo apenas da equipe de cozinha (cozinheiros, auxiliares).
             4.  **Outros Custos**: Se houver custos personalizados que não se encaixam em mão de obra (ex: um custo de frete fixo), inclua-os em 'otherCosts'. Estime também um custo de frete variável de R$2.50 por convidado, a menos que um custo fixo de frete seja fornecido.
             5.  **Impostos**: Calcule 8% sobre a soma de ingredientes + mão de obra + outros custos.
