@@ -29,8 +29,8 @@ const Header: React.FC<HeaderProps> = ({ onLogoClick, session, onProfileClick, c
                 <ArrowLeft className="w-5 h-5" />
               </button>
             ) : (
-              // Espaçador para manter o alinhamento centralizado do logo
-              <div className="w-5 h-5"></div> 
+              // Espaçador com largura suficiente para manter o alinhamento centralizado do logo
+              <div className="w-9 h-9"></div> 
             )}
           </div>
           
