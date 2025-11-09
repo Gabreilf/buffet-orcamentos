@@ -114,6 +114,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
   const { set: setEstimate, undo, redo, canUndo, canRedo } = estimateActions;
   
   const [margin, setMargin] = useState(40);
+  const [taxRate, setTaxRate] = useState(8); // Novo estado para a taxa de imposto (em %)
   const [isLaborExpanded, setIsLaborExpanded] = useState(false);
   const [isProductionExpanded, setIsProductionExpanded] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState<Record<number, boolean>>({});
@@ -148,13 +149,15 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
     }));
   };
 
-  const getKitchenStaffCost = useCallback(() => {
+  const getKitchenStaffCost = useCallback((laborDetails: LaborDetail[] | undefined) => {
       // Garante que laborDetails não é nulo
-      return (estimate.totals.laborDetails || []).filter(d => d.role.toLowerCase().includes('cozinheir') || d.role.toLowerCase().includes('auxiliar')).reduce((acc, d) => acc + (d.totalCost || 0), 0) || 0;
-  }, [estimate.totals.laborDetails]);
+      return (laborDetails || []).filter(d => d.role.toLowerCase().includes('cozinheir') || d.role.toLowerCase().includes('auxiliar')).reduce((acc, d) => acc + (d.totalCost || 0), 0) || 0;
+  }, []);
 
-  const recalculateTotals = useCallback((menuItems: MenuItemDetail[], otherCosts: OtherCost[], laborDetails?: LaborDetail[]) => {
-    const newTotals = { ...estimate.totals };
+  // Recalcula todos os totais com base nos dados brutos e na taxa de imposto atual
+  const recalculateTotals = useCallback((menuItems: MenuItemDetail[], otherCosts: OtherCost[], laborDetails: LaborDetail[], currentTaxRate: number) => {
+    
+    const newTotals: Partial<Estimate['totals']> = {};
 
     newTotals.ingredients = menuItems.reduce((acc, menuItem) => {
         return acc + menuItem.ingredients.reduce((subAcc, item) => subAcc + (item.totalCost || 0), 0);
@@ -162,158 +165,178 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
     
     const otherCostsTotal = otherCosts.reduce((acc, cost) => acc + (cost.cost || 0), 0);
 
-    // Use os laborDetails passados ou os existentes (garantindo que seja um array)
-    const currentLaborDetails = laborDetails || newTotals.laborDetails || [];
-
     // Recalculate labor total based on laborDetails
-    const laborTotal = currentLaborDetails.reduce((acc, d) => acc + (d.totalCost || 0), 0) || 0;
+    const laborTotal = laborDetails.reduce((acc, d) => acc + (d.totalCost || 0), 0) || 0;
     newTotals.labor = laborTotal;
-    newTotals.laborDetails = currentLaborDetails; // Atualiza os detalhes no objeto totals
+    newTotals.laborDetails = laborDetails; // Atualiza os detalhes no objeto totals
 
-    const kitchenStaffCost = currentLaborDetails.filter(d => d.role.toLowerCase().includes('cozinheir') || d.role.toLowerCase().includes('auxiliar')).reduce((acc, d) => acc + (d.totalCost || 0), 0) || 0;
-    newTotals.productionCost = newTotals.ingredients + kitchenStaffCost;
+    const kitchenStaffCost = (laborDetails || []).filter(d => d.role.toLowerCase().includes('cozinheir') || d.role.toLowerCase().includes('auxiliar')).reduce((acc, d) => acc + (d.totalCost || 0), 0) || 0;
+    newTotals.productionCost = (newTotals.ingredients || 0) + kitchenStaffCost;
     
     // Tax calculation based on ingredients + labor + other costs
-    const baseForTax = newTotals.ingredients + newTotals.labor + otherCostsTotal;
-    newTotals.tax = baseForTax * 0.08;
-    newTotals.totalCost = baseForTax + newTotals.tax;
+    const baseForTax = (newTotals.ingredients || 0) + (newTotals.labor || 0) + otherCostsTotal;
+    newTotals.tax = baseForTax * (currentTaxRate / 100);
+    newTotals.totalCost = baseForTax + (newTotals.tax || 0);
     
     newTotals.otherCosts = otherCosts;
-    return newTotals;
-  }, [estimate.totals]);
+    
+    // O preço sugerido será calculado no useMemo principal
+    return newTotals as Estimate['totals'];
+  }, []);
 
 
   const handleItemChange = (menuItemIndex: number, itemIndex: number, field: keyof EstimateItem, value: string) => {
-      const newMenuItems = JSON.parse(JSON.stringify(estimate.menuItems));
-      const item = newMenuItems[menuItemIndex].ingredients[itemIndex];
-      
-      if(field === 'name' || field === 'unit') {
-        item[field] = value;
-      } else {
-        // Ensure numeric fields are parsed correctly
-        (item as any)[field] = parseFloat(value) || 0;
-      }
+      // Usando a forma funcional para garantir que estamos trabalhando com o estado mais recente
+      setEstimate(prevEst => {
+          const newMenuItems = JSON.parse(JSON.stringify(prevEst.menuItems));
+          const item = newMenuItems[menuItemIndex].ingredients[itemIndex];
+          
+          if(field === 'name' || field === 'unit') {
+            item[field] = value;
+          } else {
+            (item as any)[field] = parseFloat(value) || 0;
+          }
 
-      if (field === 'qty' || field === 'unitCost') {
-          item.totalCost = item.qty * item.unitCost;
-      }
+          if (field === 'qty' || field === 'unitCost') {
+              item.totalCost = item.qty * item.unitCost;
+          }
 
-      const newTotals = recalculateTotals(newMenuItems, estimate.totals.otherCosts || []);
-      // Atualiza o estado sem adicionar ao histórico (addToHistory: false)
-      setEstimate({...estimate, menuItems: newMenuItems, totals: newTotals }, false);
+          const newTotals = recalculateTotals(newMenuItems, prevEst.totals.otherCosts || [], prevEst.totals.laborDetails || [], taxRate);
+          
+          // Atualiza o estado sem adicionar ao histórico (addToHistory: false)
+          return {...prevEst, menuItems: newMenuItems, totals: newTotals };
+      }, false);
   }
   
   // Função de mudança para LaborDetails (usada no onChange para números e onBlur para todos)
   const handleLaborDetailChange = useCallback((id: string, field: keyof LaborDetail, value: string, addToHistory: boolean = false) => {
-      const currentLaborDetails = estimate.totals.laborDetails || [];
-      if (currentLaborDetails.length === 0) return;
+      // Usando a forma funcional para garantir que estamos trabalhando com o estado mais recente
+      setEstimate(prevEst => {
+          const currentLaborDetails = prevEst.totals.laborDetails || [];
+          if (currentLaborDetails.length === 0) return prevEst;
 
-      const newLaborDetails = JSON.parse(JSON.stringify(currentLaborDetails));
-      const index = newLaborDetails.findIndex((d: LaborDetail) => d.id === id);
-      if (index === -1) return;
-      
-      const detail = newLaborDetails[index];
+          const newLaborDetails = JSON.parse(JSON.stringify(currentLaborDetails));
+          const index = newLaborDetails.findIndex((d: LaborDetail) => d.id === id);
+          if (index === -1) return prevEst;
+          
+          const detail = newLaborDetails[index];
 
-      if (field === 'role') {
-          detail[field] = value;
-      } else {
-          const numericValue = parseFloat(value) || 0;
-          (detail as any)[field] = numericValue;
-      }
+          if (field === 'role') {
+              detail[field] = value;
+          } else {
+              const numericValue = parseFloat(value) || 0;
+              (detail as any)[field] = numericValue;
+          }
 
-      // Recalcula o totalCost para este item
-      detail.totalCost = detail.count * detail.costPerUnit;
+          // Recalcula o totalCost para este item
+          detail.totalCost = detail.count * detail.costPerUnit;
 
-      const newTotals = recalculateTotals(estimate.menuItems, estimate.totals.otherCosts || [], newLaborDetails);
-      
-      // Atualiza o estado
-      setEstimate({...estimate, totals: newTotals }, addToHistory);
-  }, [estimate, recalculateTotals, setEstimate]);
+          const newTotals = recalculateTotals(prevEst.menuItems, prevEst.totals.otherCosts || [], newLaborDetails, taxRate);
+          
+          // Atualiza o estado
+          return {...prevEst, totals: newTotals };
+      }, addToHistory);
+  }, [recalculateTotals, taxRate, setEstimate]); // Dependências estáveis
 
   const handleAddLaborDetail = () => {
-      const newLaborDetails = [...(estimate.totals.laborDetails || []), {
-          id: `labor-${Date.now()}-${Math.random()}`, // ID ÚNICO
-          role: 'Novo Profissional',
-          count: 1,
-          costPerUnit: 0,
-          totalCost: 0,
-      }];
-      const newTotals = recalculateTotals(estimate.menuItems, estimate.totals.otherCosts || [], newLaborDetails);
-      // Adiciona ao histórico (padrão: true)
-      setEstimate({...estimate, totals: newTotals });
+      setEstimate(prevEst => {
+          const newLaborDetails = [...(prevEst.totals.laborDetails || []), {
+              id: `labor-${Date.now()}-${Math.random()}`, // ID ÚNICO
+              role: 'Novo Profissional',
+              count: 1,
+              costPerUnit: 0,
+              totalCost: 0,
+          }];
+          const newTotals = recalculateTotals(prevEst.menuItems, prevEst.totals.otherCosts || [], newLaborDetails, taxRate);
+          // Adiciona ao histórico (padrão: true)
+          return {...prevEst, totals: newTotals };
+      });
   };
 
   const handleRemoveLaborDetail = (id: string) => {
-      const currentLaborDetails = estimate.totals.laborDetails || [];
-      if (currentLaborDetails.length === 0) return;
-      
-      const newLaborDetails = currentLaborDetails.filter(d => d.id !== id);
-      const newTotals = recalculateTotals(estimate.menuItems, estimate.totals.otherCosts || [], newLaborDetails);
-      // Adiciona ao histórico (padrão: true)
-      setEstimate({...estimate, totals: newTotals });
+      setEstimate(prevEst => {
+          const currentLaborDetails = prevEst.totals.laborDetails || [];
+          if (currentLaborDetails.length === 0) return prevEst;
+          
+          const newLaborDetails = currentLaborDetails.filter(d => d.id !== id);
+          const newTotals = recalculateTotals(prevEst.menuItems, prevEst.totals.otherCosts || [], newLaborDetails, taxRate);
+          // Adiciona ao histórico (padrão: true)
+          return {...prevEst, totals: newTotals };
+      });
   };
   
   const handleAddItem = (menuItemIndex: number) => {
-      const newMenuItems = JSON.parse(JSON.stringify(estimate.menuItems));
-      newMenuItems[menuItemIndex].ingredients.push({
-          name: 'Novo Item',
-          qty: 1,
-          unit: 'unidade', // Default unit
-          unitCost: 0,
-          totalCost: 0,
+      setEstimate(prevEst => {
+          const newMenuItems = JSON.parse(JSON.stringify(prevEst.menuItems));
+          newMenuItems[menuItemIndex].ingredients.push({
+              name: 'Novo Item',
+              qty: 1,
+              unit: 'unidade', // Default unit
+              unitCost: 0,
+              totalCost: 0,
+          });
+          const newTotals = recalculateTotals(newMenuItems, prevEst.totals.otherCosts || [], prevEst.totals.laborDetails || [], taxRate);
+          // Adiciona ao histórico (padrão: true)
+          return {...prevEst, menuItems: newMenuItems, totals: newTotals };
       });
-      const newTotals = recalculateTotals(newMenuItems, estimate.totals.otherCosts || []);
-      // Adiciona ao histórico (padrão: true)
-      setEstimate({...estimate, menuItems: newMenuItems, totals: newTotals });
   };
   
   const handleRemoveItem = (menuItemIndex: number, itemIndex: number) => {
-      const newMenuItems = JSON.parse(JSON.stringify(estimate.menuItems));
-      newMenuItems[menuItemIndex].ingredients.splice(itemIndex, 1);
-      const newTotals = recalculateTotals(newMenuItems, estimate.totals.otherCosts || []);
-      // Adiciona ao histórico (padrão: true)
-      setEstimate({...estimate, menuItems: newMenuItems, totals: newTotals });
+      setEstimate(prevEst => {
+          const newMenuItems = JSON.parse(JSON.stringify(prevEst.menuItems));
+          newMenuItems[menuItemIndex].ingredients.splice(itemIndex, 1);
+          const newTotals = recalculateTotals(newMenuItems, prevEst.totals.otherCosts || [], prevEst.totals.laborDetails || [], taxRate);
+          // Adiciona ao histórico (padrão: true)
+          return {...prevEst, menuItems: newMenuItems, totals: newTotals };
+      });
   };
   
   // Função de mudança para OtherCost (usada no onChange para números e onBlur para todos)
   const handleOtherCostChange = useCallback((id: string, field: keyof OtherCost, value: string, addToHistory: boolean = false) => {
-      const currentOtherCosts = estimate.totals.otherCosts || [];
-      const newOtherCosts = JSON.parse(JSON.stringify(currentOtherCosts));
-      
-      const index = newOtherCosts.findIndex((c: OtherCost) => c.id === id);
-      if (index === -1) return;
-      
-      const item = newOtherCosts[index];
-      
-      if (field === 'cost') {
-          item[field] = parseFloat(value) || 0;
-      } else {
-          item[field] = value;
-      }
-      
-      const newTotals = recalculateTotals(estimate.menuItems, newOtherCosts);
-      // Atualiza o estado
-      setEstimate({...estimate, totals: newTotals }, addToHistory);
-  }, [estimate, recalculateTotals, setEstimate]);
+      // Usando a forma funcional para garantir que estamos trabalhando com o estado mais recente
+      setEstimate(prevEst => {
+          const currentOtherCosts = prevEst.totals.otherCosts || [];
+          const newOtherCosts = JSON.parse(JSON.stringify(currentOtherCosts));
+          
+          const index = newOtherCosts.findIndex((c: OtherCost) => c.id === id);
+          if (index === -1) return prevEst;
+          
+          const item = newOtherCosts[index];
+          
+          if (field === 'cost') {
+              item[field] = parseFloat(value) || 0;
+          } else {
+              item[field] = value;
+          }
+          
+          const newTotals = recalculateTotals(prevEst.menuItems, newOtherCosts, prevEst.totals.laborDetails || [], taxRate);
+          // Atualiza o estado
+          return {...prevEst, totals: newTotals };
+      }, addToHistory);
+  }, [recalculateTotals, taxRate, setEstimate]); // Dependências estáveis
   
   const handleAddOtherCost = () => {
-      const newOtherCosts = JSON.parse(JSON.stringify(estimate.totals.otherCosts || []));
-      newOtherCosts.push({ 
-          id: `other-${Date.now()}-${Math.random()}`, // ID ÚNICO
-          name: 'Novo Custo', 
-          cost: 0 
+      setEstimate(prevEst => {
+          const newOtherCosts = JSON.parse(JSON.stringify(prevEst.totals.otherCosts || []));
+          newOtherCosts.push({ 
+              id: `other-${Date.now()}-${Math.random()}`, // ID ÚNICO
+              name: 'Novo Custo', 
+              cost: 0 
+          });
+          const newTotals = recalculateTotals(prevEst.menuItems, newOtherCosts, prevEst.totals.laborDetails || [], taxRate);
+          // Adiciona ao histórico (padrão: true)
+          return {...prevEst, totals: newTotals };
       });
-      const newTotals = recalculateTotals(estimate.menuItems, newOtherCosts);
-      // Adiciona ao histórico (padrão: true)
-      setEstimate({...estimate, totals: newTotals });
   };
   
   const handleRemoveOtherCost = (id: string) => {
-      const currentOtherCosts = estimate.totals.otherCosts || [];
-      const newOtherCosts = currentOtherCosts.filter(c => c.id !== id);
-      const newTotals = recalculateTotals(estimate.menuItems, newOtherCosts);
-      // Adiciona ao histórico (padrão: true)
-      setEstimate({...estimate, totals: newTotals });
+      setEstimate(prevEst => {
+          const currentOtherCosts = prevEst.totals.otherCosts || [];
+          const newOtherCosts = currentOtherCosts.filter(c => c.id !== id);
+          const newTotals = recalculateTotals(prevEst.menuItems, newOtherCosts, prevEst.totals.laborDetails || [], taxRate);
+          // Adiciona ao histórico (padrão: true)
+          return {...prevEst, totals: newTotals };
+      });
   };
 
   const handleAddRecipe = async () => {
@@ -329,7 +352,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
           const newMenuItem = await generateMenuItemDetails(newRecipeName, estimate.guests);
           
           const newMenuItems = [...estimate.menuItems, newMenuItem];
-          const newTotals = recalculateTotals(newMenuItems, estimate.totals.otherCosts || []);
+          const newTotals = recalculateTotals(newMenuItems, estimate.totals.otherCosts || [], estimate.totals.laborDetails || [], taxRate);
           
           // Adiciona ao histórico (padrão: true)
           setEstimate({
@@ -372,47 +395,44 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
           return newAverages;
       });
       
-      // 2. Calcula o novo estado do Estimate (prevEst é o estado atual do hook useUndoRedo)
-      const prevEst = estimate;
-      const serializedAverages = serializePremises(newAverages);
-      
-      // 3. Recalcula as quantidades dos ingredientes
-      const updatedMenuItems = prevEst.menuItems.map(menuItem => ({
-          ...menuItem,
-          ingredients: menuItem.ingredients.map(ingredient => {
-              const premise = newAverages.find(p => 
-                  ingredient.name.toLowerCase().includes(p.item.toLowerCase()) && p.quantity > 0
-              );
-              
-              if (premise) {
-                  // Se a premissa for encontrada, recalcula a quantidade total (qty)
-                  // Nota: Assumimos que a unidade da premissa (p.unit) é a mesma unidade do ingrediente (ingredient.unit)
-                  const newQty = premise.quantity * prevEst.guests;
-                  const newTotalCost = newQty * ingredient.unitCost;
+      // 2. Calcula o novo estado do Estimate (usando a forma funcional)
+      setEstimate(prevEst => {
+          const serializedAverages = serializePremises(newAverages);
+          
+          // 3. Recalcula as quantidades dos ingredientes
+          const updatedMenuItems = prevEst.menuItems.map(menuItem => ({
+              ...menuItem,
+              ingredients: menuItem.ingredients.map(ingredient => {
+                  const premise = newAverages.find(p => 
+                      ingredient.name.toLowerCase().includes(p.item.toLowerCase()) && p.quantity > 0
+                  );
                   
-                  return {
-                      ...ingredient,
-                      qty: newQty,
-                      totalCost: newTotalCost,
-                      unit: premise.unit, // Atualiza a unidade do ingrediente para corresponder à premissa
-                  };
-              }
-              return ingredient;
-          })
-      }));
-      
-      // 4. Recalcula os totais financeiros com os novos ingredientes
-      const newTotals = recalculateTotals(updatedMenuItems, prevEst.totals.otherCosts || [], prevEst.totals.laborDetails || []);
-      
-      const newEstimate = {
-          ...prevEst,
-          consumptionAverages: serializedAverages,
-          menuItems: updatedMenuItems,
-          totals: newTotals,
-      };
-      
-      // 5. Atualiza o estado principal do Estimate
-      setEstimate(newEstimate, addToHistory);
+                  if (premise) {
+                      // Se a premissa for encontrada, recalcula a quantidade total (qty)
+                      const newQty = premise.quantity * prevEst.guests;
+                      const newTotalCost = newQty * ingredient.unitCost;
+                      
+                      return {
+                          ...ingredient,
+                          qty: newQty,
+                          totalCost: newTotalCost,
+                          unit: premise.unit, // Atualiza a unidade do ingrediente para corresponder à premissa
+                      };
+                  }
+                  return ingredient;
+              })
+          }));
+          
+          // 4. Recalcula os totais financeiros com os novos ingredientes
+          const newTotals = recalculateTotals(updatedMenuItems, prevEst.totals.otherCosts || [], prevEst.totals.laborDetails || [], taxRate);
+          
+          return {
+              ...prevEst,
+              consumptionAverages: serializedAverages,
+              menuItems: updatedMenuItems,
+              totals: newTotals,
+          };
+      }, addToHistory);
   };
 
   const handleSavePremises = () => {
@@ -433,10 +453,10 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
       setStructuredAverages(prev => {
           const newAverages = [...prev, newPremise];
           // Adiciona ao histórico (padrão: true)
-          setEstimate({
-              ...estimate,
+          setEstimate(prevEst => ({
+              ...prevEst,
               consumptionAverages: serializePremises(newAverages),
-          });
+          }));
           return newAverages;
       });
   };
@@ -445,10 +465,10 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
       setStructuredAverages(prev => {
           const newAverages = prev.filter(p => p.id !== id);
           // Adiciona ao histórico (padrão: true)
-          setEstimate({
-              ...estimate,
+          setEstimate(prevEst => ({
+              ...prevEst,
               consumptionAverages: serializePremises(newAverages),
-          });
+          }));
           return newAverages;
       });
   };
@@ -499,6 +519,24 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
       setDateParts({ day: '', month: '', year: '' });
       // Adiciona ao histórico (padrão: true)
       setEstimate({ ...estimate, eventDate: '' });
+  };
+  
+  // Handler para mudança da taxa de imposto
+  const handleTaxRateChange = (value: string) => {
+      const newRate = parseFloat(value) || 0;
+      setTaxRate(newRate);
+      
+      // Recalcula os totais imediatamente (sem adicionar ao histórico)
+      setEstimate(prevEst => {
+          const newTotals = recalculateTotals(prevEst.menuItems, prevEst.totals.otherCosts || [], prevEst.totals.laborDetails || [], newRate);
+          return { ...prevEst, totals: newTotals };
+      }, false);
+  };
+  
+  // Handler para salvar a taxa de imposto no histórico (onBlur)
+  const handleTaxRateBlur = () => {
+      // Força a adição do estado atual ao histórico
+      setEstimate(estimate, true);
   };
 
 
@@ -645,12 +683,15 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
 
 
   const updatedTotals = useMemo(() => {
-    const totalCost = estimate.totals.totalCost;
+    // Recalcula os totais usando a taxa de imposto atual
+    const recalculated = recalculateTotals(estimate.menuItems, estimate.totals.otherCosts || [], estimate.totals.laborDetails || [], taxRate);
+    
+    const totalCost = recalculated.totalCost;
     const suggestedPrice = totalCost * (1 + margin / 100);
-    return { ...estimate.totals, suggestedPrice };
-  }, [estimate.totals, margin]);
+    return { ...recalculated, suggestedPrice };
+  }, [estimate.menuItems, estimate.totals.otherCosts, estimate.totals.laborDetails, margin, taxRate, recalculateTotals]);
   
-  const kitchenStaffCost = getKitchenStaffCost();
+  const kitchenStaffCost = getKitchenStaffCost(estimate.totals.laborDetails);
 
   // Componente auxiliar para renderizar o Resumo Financeiro (usado tanto na tela quanto no PDF)
   const FinancialSummary = () => (
@@ -658,10 +699,10 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
         <h3 className="text-xl font-bold text-slate-800 border-b pb-3 mb-4">Resumo Financeiro</h3>
         
         <div className="space-y-3 text-sm">
-            <div className="flex justify-between"><span className="text-slate-500">Custo Ingredientes:</span> <span className="font-medium">{formatCurrency(estimate.totals.ingredients)}</span></div>
+            <div className="flex justify-between"><span className="text-slate-500">Custo Ingredientes:</span> <span className="font-medium">{formatCurrency(updatedTotals.ingredients)}</span></div>
             
             {/* Custo de Produção Expandível */}
-            {estimate.totals.productionCost !== undefined && (
+            {updatedTotals.productionCost !== undefined && (
                 <div 
                     className={`p-1 -m-1 rounded transition ${isExporting ? 'cursor-default' : 'cursor-pointer hover:bg-slate-50'}`}
                     onClick={() => !isExporting && setIsProductionExpanded(!isProductionExpanded)}
@@ -670,18 +711,18 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                     <div className="flex justify-between">
                         <span className="text-slate-800 font-semibold">Custo Produção:</span>
                         <span className="font-bold flex items-center text-slate-800">
-                            {formatCurrency(estimate.totals.productionCost)}
+                            {formatCurrency(updatedTotals.productionCost)}
                             {!isExporting && <ChevronDown className={`w-4 h-4 ml-2 text-slate-400 transition-transform duration-200 ${isProductionExpanded ? 'rotate-180' : ''}`} />}
                         </span>
                     </div>
                 </div>
             )}
             {/* Conteúdo do Custo de Produção. Renderizado condicionalmente, mas forçado a aparecer no PDF */}
-            {(isProductionExpanded || isExporting) && estimate.totals.productionCost !== undefined && (
+            {(isProductionExpanded || isExporting) && updatedTotals.productionCost !== undefined && (
                 <div className="pl-4 mt-2 space-y-1 border-l-2 border-slate-200 bg-slate-50 p-2 rounded">
                     <div className="flex justify-between text-xs">
                         <span className="text-slate-500">Ingredientes:</span>
-                        <span className="font-mono">{formatCurrency(estimate.totals.ingredients)}</span>
+                        <span className="font-mono">{formatCurrency(updatedTotals.ingredients)}</span>
                     </div>
                     <div className="flex justify-between text-xs">
                         <span className="text-slate-500">Equipe de Cozinha:</span>
@@ -699,18 +740,18 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
               <div className="flex justify-between">
                 <span className="text-slate-500">Custo Mão de Obra Total:</span>
                 <span className="font-medium flex items-center">
-                  {formatCurrency(estimate.totals.labor)}
+                  {formatCurrency(updatedTotals.labor)}
                   {/* Verifica se laborDetails existe antes de verificar o length */}
-                  {(estimate.totals.laborDetails && estimate.totals.laborDetails.length > 0 && !isExporting) && (
+                  {(updatedTotals.laborDetails && updatedTotals.laborDetails.length > 0 && !isExporting) && (
                     <ChevronDown className={`w-4 h-4 ml-2 text-slate-400 transition-transform duration-200 ${isLaborExpanded ? 'rotate-180' : ''}`} />
                   )}
                 </span>
               </div>
             </div>
             {/* Conteúdo da Mão de Obra. Garante que laborDetails é um array vazio se for undefined/null */}
-            {(isLaborExpanded || isExporting) && (estimate.totals.laborDetails || []).length > 0 && (
+            {(isLaborExpanded || isExporting) && (updatedTotals.laborDetails || []).length > 0 && (
                 <div className={`pl-4 mt-2 space-y-2 border-l-2 border-slate-200 ${isExporting ? 'bg-white' : ''}`}>
-                  {(estimate.totals.laborDetails || []).map((detail) => (
+                  {(updatedTotals.laborDetails || []).map((detail) => (
                       <LaborDetailItem 
                           key={detail.id}
                           detail={detail}
@@ -731,7 +772,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
             <div className="pt-2 border-t border-slate-100">
               <h4 className="text-xs font-semibold text-slate-600 mb-2">Outros Custos</h4>
               {/* Garante que otherCosts é um array vazio se for undefined/null */}
-              {(estimate.totals.otherCosts || []).map((cost) => (
+              {(updatedTotals.otherCosts || []).map((cost) => (
                   <OtherCostItem
                       key={cost.id}
                       cost={cost}
@@ -747,15 +788,31 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
               )}
             </div>
 
-
-            <div className="flex justify-between pt-2 border-t border-slate-200"><span className="text-slate-500">Impostos (8%):</span> <span className="font-medium">{formatCurrency(estimate.totals.tax)}</span></div>
+            {/* Campo de Edição de Impostos */}
+            <div className="flex justify-between pt-2 border-t border-slate-200 items-center">
+                <span className="text-slate-500">Impostos:</span>
+                <div className="flex items-center">
+                    <input
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        value={taxRate}
+                        onChange={(e) => handleTaxRateChange(e.target.value)}
+                        onBlur={handleTaxRateBlur}
+                        className={`w-12 bg-transparent p-1 rounded border text-sm text-right ${isExporting ? 'border-transparent' : 'border-slate-300 focus:border-indigo-500 focus:ring-indigo-500'}`}
+                        readOnly={isExporting}
+                    />
+                    <span className="text-slate-500 ml-1">%</span>
+                    <span className="font-medium ml-3">{formatCurrency(updatedTotals.tax)}</span>
+                </div>
+            </div>
         </div>
 
         <div className="my-4 border-t border-dashed"></div>
         
         <div className="flex justify-between text-lg font-bold p-3 bg-slate-100 rounded-lg">
             <span className="text-slate-800">CUSTO TOTAL:</span>
-            <span className="text-red-600">{formatCurrency(estimate.totals.totalCost)}</span>
+            <span className="text-red-600">{formatCurrency(updatedTotals.totalCost)}</span>
         </div>
         
         {!isExporting && (
@@ -781,7 +838,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
             <span>{formatCurrency(updatedTotals.suggestedPrice)}</span>
         </div>
          <div className="mt-1 text-right text-sm text-slate-500">
-             Lucro Bruto: {formatCurrency(updatedTotals.suggestedPrice - estimate.totals.totalCost)}
+             Lucro Bruto: {formatCurrency(updatedTotals.suggestedPrice - updatedTotals.totalCost)}
          </div>
          
          {!isExporting && (
