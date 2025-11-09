@@ -6,7 +6,7 @@ import { saveNewEstimate, updateEstimate } from '../services/estimateService';
 import toast from 'react-hot-toast';
 import { useUndoRedo } from '../hooks/useUndoRedo'; 
 import OtherCostItem from '../components/OtherCostItem'; // Importando o novo componente
-import LaborDetailItem from '../components/LaborDetailItem'; // Importando o novo componente
+import LaborDetailItem from '../2components/LaborDetailItem'; // Importando o novo componente
 
 interface EstimateResultProps {
   estimate: Estimate;
@@ -309,7 +309,10 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
   const handleOtherCostChange = useCallback((id: string, field: keyof OtherCost, value: string, addToHistory: boolean = false) => {
       // Usando a forma funcional para garantir que estamos trabalhando com o estado mais recente
       setEstimate(prevEst => {
+          // 1. Garante que otherCosts é um array
           const currentOtherCosts = prevEst.totals.otherCosts || [];
+          
+          // 2. Cria uma cópia profunda para modificação
           const newOtherCosts = JSON.parse(JSON.stringify(currentOtherCosts));
           
           const index = newOtherCosts.findIndex((c: OtherCost) => c.id === id);
@@ -317,15 +320,27 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
           
           const item = newOtherCosts[index];
           
+          // 3. Atualiza o campo
           if (field === 'cost') {
+              // Para campos numéricos, converte o valor
               item[field] = parseFloat(value) || 0;
           } else {
+              // Para campos de texto (name)
               item[field] = value;
           }
           
+          // 4. Recalcula os totais
           const newTotals = recalculateTotals(prevEst.menuItems, newOtherCosts, prevEst.totals.laborDetails || [], taxRate);
-          // Atualiza o estado
-          return {...prevEst, totals: newTotals };
+          
+          // 5. Retorna o novo estado completo
+          return {
+              ...prevEst, 
+              totals: {
+                  ...prevEst.totals,
+                  ...newTotals,
+                  otherCosts: newOtherCosts, // Garante que a lista de custos atualizada está no objeto totals
+              }
+          };
       }, addToHistory);
   }, [recalculateTotals, taxRate, setEstimate]); // Dependências estáveis
   
