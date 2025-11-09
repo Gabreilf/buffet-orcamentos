@@ -4,7 +4,6 @@ import { ChevronDown, Trash2, Plus, FileText, Loader2, Pencil, RotateCcw, Rotate
 import { generateMenuItemDetails } from '../services/geminiService';
 import { saveNewEstimate, updateEstimate } from '../services/estimateService';
 import toast from 'react-hot-toast';
-// Removendo importações de html2canvas e jsPDF
 import { useUndoRedo } from '../hooks/useUndoRedo'; 
 
 interface EstimateResultProps {
@@ -829,25 +828,25 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
 
 
   return (
-    <div className="container mx-auto">
+    <div className="container mx-auto p-0 sm:p-4"> {/* Adicionando padding responsivo */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
         {/* Coluna Principal (Conteúdo do PDF) */}
         <div className="lg:col-span-2 space-y-8" id="estimate-content">
-            <div className="bg-white p-6 rounded-xl shadow-lg">
-                <div className="flex justify-between items-start mb-6">
+            <div className="bg-white p-4 sm:p-6 rounded-xl shadow-lg"> {/* Padding responsivo */}
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
                     <div>
-                      <h2 className="text-2xl font-bold text-slate-800">Detalhes do Orçamento</h2>
-                      <div className="flex items-center space-x-2 text-slate-500">
+                      <h2 className="text-xl sm:text-2xl font-bold text-slate-800">Detalhes do Orçamento</h2>
+                      <div className="flex flex-wrap items-center space-x-2 text-slate-500 mt-1">
                           {/* Campo de Edição do Tipo de Evento */}
                           <input
                               type="text"
                               value={estimate.eventType}
                               onChange={(e) => handleEventTypeChange(e.target.value)}
                               onBlur={() => setEstimate(estimate, true)} // Adiciona ao histórico ao perder o foco
-                              className="text-xl font-bold text-slate-800 bg-transparent p-1 -ml-1 rounded border border-slate-200 focus:border-indigo-500"
+                              className="text-lg sm:text-xl font-bold text-slate-800 bg-transparent p-1 -ml-1 rounded border border-slate-200 focus:border-indigo-500 w-full sm:w-auto"
                           />
-                          <span className="text-lg font-normal">para {estimate.guests} convidados.</span>
+                          <span className="text-base sm:text-lg font-normal">para {estimate.guests} convidados.</span>
                       </div>
                       
                       {/* Campo de Edição da Data do Evento */}
@@ -905,7 +904,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                           </div>
                       </div>
                     </div>
-                    <div className="flex space-x-2">
+                    <div className="flex space-x-2 mt-4 sm:mt-0"> {/* Ajuste de margem para mobile */}
                         {/* Undo/Redo Buttons (Hidden during export) */}
                         {!isExporting && (
                             <>
@@ -932,7 +931,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                         <button 
                             onClick={handleExportCSV}
                             disabled={isExporting}
-                            className="bg-slate-100 text-slate-700 font-bold py-2 px-4 rounded-lg hover:bg-slate-200 transition flex items-center disabled:opacity-60"
+                            className="bg-slate-100 text-slate-700 font-bold py-2 px-4 rounded-lg hover:bg-slate-200 transition flex items-center disabled:opacity-60 text-sm"
                         >
                           {isExporting ? (
                               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -965,7 +964,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                     
                     <div className="space-y-2">
                         {structuredAverages.map((p) => (
-                            <div key={p.id} className="flex items-center space-x-2 group">
+                            <div key={p.id} className="flex flex-wrap items-center gap-2 group"> {/* Usando flex-wrap e gap para mobile */}
                                 {(isPremiseEditing || isExporting) ? (
                                     <input
                                         type="text"
@@ -973,48 +972,50 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                                         onChange={(e) => handleStructuredPremiseChange(p.id, 'item', e.target.value)}
                                         onBlur={() => setEstimate(estimate, true)} // Adiciona ao histórico ao perder o foco
                                         placeholder="Item (ex: Carne)"
-                                        className={`flex-1 p-2 rounded border text-sm text-slate-700 ${isExporting ? 'bg-transparent border-transparent' : 'bg-white border-indigo-300 focus:border-indigo-500'}`}
+                                        className={`flex-1 min-w-[100px] p-2 rounded border text-sm text-slate-700 ${isExporting ? 'bg-transparent border-transparent' : 'bg-white border-indigo-300 focus:border-indigo-500'}`}
                                         readOnly={isExporting}
                                     />
                                 ) : (
-                                    <span className="flex-1 p-2 text-sm text-slate-700 truncate">{p.item}</span>
+                                    <span className="flex-1 min-w-[100px] p-2 text-sm text-slate-700 truncate">{p.item}</span>
                                 )}
                                 
-                                {(isPremiseEditing || isExporting) ? (
-                                    <input
-                                        type="number"
-                                        value={p.quantity}
-                                        onChange={(e) => handleStructuredPremiseChange(p.id, 'quantity', e.target.value)}
-                                        onBlur={() => setEstimate(estimate, true)} // Adiciona ao histórico ao perder o foco
-                                        placeholder="Qtde"
-                                        className={`w-20 p-2 rounded border text-sm text-slate-700 text-right ${isExporting ? 'bg-transparent border-transparent' : 'bg-white border-indigo-300 focus:border-indigo-500'}`}
-                                        readOnly={isExporting}
-                                    />
-                                ) : (
-                                    // Formatação para exibir o número com precisão, mas sem zeros desnecessários
-                                    <span className="w-20 p-2 text-sm text-slate-700 text-right font-medium">
-                                        {p.quantity.toFixed(2).replace(/\.?0+$/, '')}
-                                    </span>
-                                )}
-                                
-                                {(isPremiseEditing || isExporting) ? (
-                                    <select
-                                        value={p.unit}
-                                        onChange={(e) => handleStructuredPremiseChange(p.id, 'unit', e.target.value)}
-                                        onBlur={() => setEstimate(estimate, true)} // Adiciona ao histórico ao perder o foco
-                                        className={`w-20 p-2 rounded border text-sm text-slate-700 ${isExporting ? 'bg-transparent border-transparent appearance-none' : 'bg-white border-indigo-300 focus:border-indigo-500'}`}
-                                        disabled={isExporting}
-                                    >
-                                        {commonUnits.map(unit => (
-                                            <option key={unit} value={unit}>{unit}</option>
-                                        ))}
-                                        {!commonUnits.includes(p.unit) && p.unit && <option value={p.unit}>{p.unit}</option>}
-                                    </select>
-                                ) : (
-                                    <span className="w-20 p-2 text-sm text-slate-700">{p.unit}</span>
-                                )}
-                                
-                                <span className="text-sm text-slate-500 whitespace-nowrap">/ pessoa</span>
+                                <div className="flex items-center space-x-1">
+                                    {(isPremiseEditing || isExporting) ? (
+                                        <input
+                                            type="number"
+                                            value={p.quantity}
+                                            onChange={(e) => handleStructuredPremiseChange(p.id, 'quantity', e.target.value)}
+                                            onBlur={() => setEstimate(estimate, true)} // Adiciona ao histórico ao perder o foco
+                                            placeholder="Qtde"
+                                            className={`w-16 p-2 rounded border text-sm text-slate-700 text-right ${isExporting ? 'bg-transparent border-transparent' : 'bg-white border-indigo-300 focus:border-indigo-500'}`}
+                                            readOnly={isExporting}
+                                        />
+                                    ) : (
+                                        // Formatação para exibir o número com precisão, mas sem zeros desnecessários
+                                        <span className="w-16 p-2 text-sm text-slate-700 text-right font-medium">
+                                            {p.quantity.toFixed(2).replace(/\.?0+$/, '')}
+                                        </span>
+                                    )}
+                                    
+                                    {(isPremiseEditing || isExporting) ? (
+                                        <select
+                                            value={p.unit}
+                                            onChange={(e) => handleStructuredPremiseChange(p.id, 'unit', e.target.value)}
+                                            onBlur={() => setEstimate(estimate, true)} // Adiciona ao histórico ao perder o foco
+                                            className={`w-16 p-2 rounded border text-sm text-slate-700 ${isExporting ? 'bg-transparent border-transparent appearance-none' : 'bg-white border-indigo-300 focus:border-indigo-500'}`}
+                                            disabled={isExporting}
+                                        >
+                                            {commonUnits.map(unit => (
+                                                <option key={unit} value={unit}>{unit}</option>
+                                            ))}
+                                            {!commonUnits.includes(p.unit) && p.unit && <option value={p.unit}>{p.unit}</option>}
+                                        </select>
+                                    ) : (
+                                        <span className="w-16 p-2 text-sm text-slate-700">{p.unit}</span>
+                                    )}
+                                    
+                                    <span className="text-sm text-slate-500 whitespace-nowrap">/ pessoa</span>
+                                </div>
                                 
                                 {isPremiseEditing && !isExporting && (
                                     <button 
@@ -1058,17 +1059,18 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                           
                           {/* O conteúdo é renderizado condicionalmente, mas será forçado a aparecer no PDF */}
                           {(isExpanded || isExporting) && (
-                            <div className="p-4 pt-2 bg-white">
+                            <div className="p-2 sm:p-4 pt-2 bg-white">
+                              {/* Adicionando overflow-x-auto para permitir rolagem horizontal em telas pequenas */}
                               <div className="overflow-x-auto">
                                   <table className="min-w-full divide-y divide-slate-200">
                                     <thead className="bg-white">
                                       <tr>
                                         {/* Aumentando a largura da coluna Item */}
-                                        <th className="px-2 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider w-3/5">Item</th> 
-                                        <th className="px-2 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Qtde.</th>
-                                        <th className="px-2 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Unidade</th>
-                                        <th className="px-2 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Custo Unit. (R$)</th>
-                                        <th className="px-2 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Custo Total</th>
+                                        <th className="px-2 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider min-w-[150px]">Item</th> 
+                                        <th className="px-2 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider min-w-[60px]">Qtde.</th>
+                                        <th className="px-2 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider min-w-[80px]">Unidade</th>
+                                        <th className="px-2 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider min-w-[100px]">Custo Unit. (R$)</th>
+                                        <th className="px-2 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider min-w-[100px]">Custo Total</th>
                                         <th className="px-2 py-2 text-right text-xs font-medium text-slate-500 uppercase tracking-wider w-12">Ação</th>
                                       </tr>
                                     </thead>
@@ -1197,13 +1199,13 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
             </div>
             
             {/* Resumo Financeiro INCLUÍDO na área de conteúdo para exportação */}
-            <div className="mt-8">
+            <div className="mt-8 lg:hidden"> {/* Mostra o resumo financeiro no fluxo principal em mobile */}
                 <FinancialSummary />
             </div>
         </div>
 
         {/* Sidebar: Financial Summary (Apenas para visualização na tela) */}
-        <div className="lg:col-span-1 hidden lg:block">
+        <div className="lg:col-span-1 hidden lg:block"> {/* Oculta em mobile, mostra em desktop */}
             <div className="sticky top-8">
                 <FinancialSummary />
             </div>

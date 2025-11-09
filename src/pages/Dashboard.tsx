@@ -219,15 +219,15 @@ const Dashboard: React.FC<DashboardProps> = ({
             <PlanStatusBanner profile={userProfile} onUpgradeClick={onViewPlans} />
         )}
         
-        <div className="flex justify-between items-center mb-6">
-            <h2 className="text-3xl font-bold text-slate-800">Painel de Controle</h2>
-            <div className="flex space-x-3">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+            <h2 className="text-3xl font-bold text-slate-800 mb-4 sm:mb-0">Painel de Controle</h2>
+            <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3 w-full sm:w-auto">
                 {/* Botão de Suporte WhatsApp */}
                 <a
                     href="https://wa.me/5521973741689"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="bg-green-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-600 transition duration-300 ease-in-out shadow-lg flex items-center"
+                    className="bg-green-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-600 transition duration-300 ease-in-out shadow-lg flex items-center justify-center"
                     title="Suporte via WhatsApp"
                 >
                     <i className="fab fa-whatsapp mr-2"></i> Suporte
@@ -235,7 +235,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                 
                 <button
                 onClick={onCreateNew}
-                className="bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 transition duration-300 ease-in-out shadow-lg flex items-center"
+                className="bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 transition duration-300 ease-in-out shadow-lg flex items-center justify-center"
                 >
                     <i className="fas fa-plus mr-2"></i> Criar Novo Orçamento
                 </button>
@@ -263,7 +263,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                                 </div>
                                 
                                 {/* Novos Campos Editáveis */}
-                                <div className="grid grid-cols-2 gap-4 mb-4 border-t pt-3 border-slate-100">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4 border-t pt-3 border-slate-100">
                                     <div>
                                         <label className="block text-xs font-medium text-slate-500 mb-1">Data do Evento</label>
                                         <div className="relative flex items-center space-x-1">
