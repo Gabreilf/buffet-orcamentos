@@ -554,7 +554,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
               detail.count.toString(),
               'Diária/Unidade',
               formatNumber(detail.costPerUnit),
-              formatNumber(detail.costPerUnit * detail.count), // Recalculando para garantir
+              formatNumber(detail.totalCost),
               'Mão de Obra',
               DATE_CREATED
           ]);
@@ -680,10 +680,10 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                 <div className={`pl-4 mt-2 space-y-2 border-l-2 border-slate-200 ${isExporting ? 'bg-white' : ''}`}>
                   {(estimate.totals.laborDetails || []).map((detail, index) => (
                       <div key={index} className="flex items-center justify-between group py-1">
-                          {/* Role Input (CORRIGIDO: Usando onBlur para salvar no histórico) */}
+                          {/* Role Input */}
                           <input 
                               type="text"
-                              defaultValue={detail.role} // Usar defaultValue para evitar re-renderização no onChange
+                              value={detail.role} // Usando value
                               onChange={(e) => handleLaborDetailChange(index, 'role', e.target.value, false)} // Atualiza o estado sem histórico
                               onBlur={(e) => handleLaborDetailChange(index, 'role', e.target.value, true)} // Salva no histórico ao perder o foco
                               placeholder="Função"
@@ -692,7 +692,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                           />
                           
                           <div className="flex items-center space-x-1">
-                              {/* Count Input (CORRIGIDO: Usando onBlur para salvar no histórico) */}
+                              {/* Count Input */}
                               <input 
                                   type="number"
                                   value={detail.count}
@@ -703,7 +703,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                               />
                               <span className="text-slate-500">x</span>
                               
-                              {/* Cost Per Unit Input (CORRIGIDO: Usando onBlur para salvar no histórico) */}
+                              {/* Cost Per Unit Input */}
                               <span className="text-slate-500">R$</span>
                               <input 
                                   type="number"
@@ -740,10 +740,10 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
               {/* Garante que otherCosts é um array vazio se for undefined/null */}
               {(estimate.totals.otherCosts || []).map((cost, index) => (
                   <div key={index} className="flex justify-between items-center group py-1">
-                      {/* Name Input (CORRIGIDO: Usando onBlur para salvar no histórico) */}
+                      {/* Name Input */}
                       <input 
                           type="text"
-                          defaultValue={cost.name} // Usar defaultValue para evitar re-renderização no onChange
+                          value={cost.name} // Usando value
                           onChange={(e) => handleOtherCostChange(index, 'name', e.target.value, false)} // Atualiza o estado sem histórico
                           onBlur={(e) => handleOtherCostChange(index, 'name', e.target.value, true)} // Salva no histórico ao perder o foco
                           placeholder="Nome do Custo"
@@ -752,7 +752,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                       />
                       <div className="flex items-center">
                           <span className="text-slate-500 mr-1">R$</span>
-                          {/* Cost Input (CORRIGIDO: Usando onBlur para salvar no histórico) */}
+                          {/* Cost Input */}
                           <input 
                               type="number"
                               step="0.01"
@@ -972,7 +972,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                                 {(isPremiseEditing || isExporting) ? (
                                     <input
                                         type="text"
-                                        defaultValue={p.item} // Usando defaultValue
+                                        value={p.item}
                                         onChange={(e) => handleStructuredPremiseChange(p.id, 'item', e.target.value, false)}
                                         onBlur={(e) => handleStructuredPremiseChange(p.id, 'item', e.target.value, true)} // Salva no histórico
                                         placeholder="Item (ex: Carne)"
