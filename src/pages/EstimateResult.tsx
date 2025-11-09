@@ -331,11 +331,11 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
           const newTotals = recalculateTotals(newMenuItems, [], estimate.totals.laborDetails || [], taxRate);
           
           // Adiciona ao histórico (padrão: true)
-          setEstimate({
-              ...estimate,
+          setEstimate(prevEst => ({
+              ...prevEst,
               menuItems: newMenuItems,
               totals: newTotals,
-          });
+          }));
           
           // Expandir o novo item automaticamente
           setExpandedMenus(prev => ({
@@ -415,8 +415,8 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
   const handleSavePremises = () => {
       // A lógica de atualização do estimate já está em handleStructuredPremiseChange
       // Aqui apenas desativamos o modo de edição e adicionamos o estado final ao histórico.
-      setIsPremiseEditing(false);
       setEstimate(estimate, true); // Força a adição do estado atual ao histórico
+      setIsPremiseEditing(false);
   };
 
   const handleAddStructuredPremise = () => {
@@ -853,7 +853,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
             <div className="bg-white p-4 sm:p-6 rounded-xl shadow-lg"> {/* Padding responsivo */}
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
                     <div>
-                      <h2 className="text-xl sm:text-2xl font-bold text-slate-800">Itens para a entrega do buffet</h2>
+                      <h2 className="text-xl sm:text-2xl font-bold text-slate-800">Detalhes do Orçamento</h2>
                       <div className="flex flex-wrap items-center space-x-2 text-slate-500 mt-1">
                           {/* Campo de Edição do Tipo de Evento */}
                           <input
@@ -1058,6 +1058,9 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                     )}
                 </div>
                 {/* End Editable Consumption Averages Section */}
+                
+                {/* NOVO TÍTULO AQUI */}
+                <h3 className="text-xl font-bold text-slate-800 mb-4">Itens para a entrega do buffet</h3>
 
                 <div className="space-y-6">
                     {estimate.menuItems.map((menuItem, menuItemIndex) => {
