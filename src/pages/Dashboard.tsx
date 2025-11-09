@@ -89,7 +89,9 @@ const Dashboard: React.FC<DashboardProps> = ({
   userProfile, // Recebendo o perfil
   onViewPlans, // Recebendo o handler de navegação
 }) => {
-    const [editableCustomCosts, setEditableCustomCosts] = useState<CustomCost[]>(JSON.parse(JSON.stringify(customCosts)));
+    // Removendo o estado local de edição de custos personalizados, pois a edição será feita no EstimateResult
+    // const [editableCustomCosts, setEditableCustomCosts] = useState<CustomCost[]>(JSON.parse(JSON.stringify(customCosts)));
+    
     // Estado local para gerenciar as partes da data de cada orçamento
     const [editingDateParts, setEditingDateParts] = useState<Record<string, DateParts>>({});
 
@@ -102,6 +104,8 @@ const Dashboard: React.FC<DashboardProps> = ({
         setEditingDateParts(initialDateParts);
     }, [estimates]);
 
+    // Removendo handlers de edição de custos personalizados
+    /*
     const handleCustomCostChange = (index: number, field: keyof Omit<CustomCost, 'id'>, value: string) => {
         const newCosts = [...editableCustomCosts];
         if (field === 'cost') {
@@ -126,6 +130,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         setEditableCustomCosts(newCosts);
         onCustomCostsChange(newCosts);
     };
+    */
     
     // Função que salva no Supabase
     const saveEstimateField = useCallback(async (estimate: Estimate, field: 'eventDate' | 'deliveryStatus', value: string) => {
@@ -240,8 +245,9 @@ const Dashboard: React.FC<DashboardProps> = ({
             </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2">
+        {/* Removendo a grade de 3 colunas e deixando apenas 1 coluna para a lista de orçamentos */}
+        <div className="grid grid-cols-1 gap-8">
+            <div className="lg:col-span-1">
                 <h3 className="text-xl font-semibold text-slate-700 mb-4">Orçamentos Recentes</h3>
                 {estimates.length > 0 ? (
                     <div className="space-y-4">
@@ -351,6 +357,8 @@ const Dashboard: React.FC<DashboardProps> = ({
                 )}
             </div>
 
+            {/* Removendo a coluna de Custos Personalizados */}
+            {/*
             <div className="lg:col-span-1">
                 <div className="sticky top-8 bg-white p-6 rounded-xl shadow-lg">
                     <h3 className="text-xl font-bold text-slate-800 border-b pb-3 mb-4">Custos Personalizados</h3>
@@ -387,6 +395,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                     </button>
                 </div>
             </div>
+            */}
         </div>
     </div>
   );
