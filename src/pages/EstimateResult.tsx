@@ -853,7 +853,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
             <div className="bg-white p-4 sm:p-6 rounded-xl shadow-lg"> {/* Padding responsivo */}
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
                     <div>
-                      <h2 className="text-xl sm:text-2xl font-bold text-slate-800">Detalhes do Orçamento</h2>
+                      <h2 className="text-xl sm:text-2xl font-bold text-slate-800">Itens para a entrega do buffet</h2>
                       <div className="flex flex-wrap items-center space-x-2 text-slate-500 mt-1">
                           {/* Campo de Edição do Tipo de Evento */}
                           <input
