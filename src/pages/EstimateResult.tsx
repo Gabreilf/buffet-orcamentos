@@ -28,6 +28,14 @@ interface DateParts {
     year: string;
 }
 
+// Custos padrão para inicialização
+const DEFAULT_OTHER_COSTS: OtherCost[] = [
+    { id: 'waiter', name: 'Diária Garçom (Estimativa)', cost: 150 },
+    { id: 'cook', name: 'Diária Cozinheira (Estimativa)', cost: 200 },
+    { id: 'marketing', name: 'Marketing e Foto (Fixo)', cost: 250 },
+    { id: 'freight', name: 'Frete até o evento (Fixo)', cost: 100 },
+];
+
 // Função auxiliar para extrair D/M/A de YYYY-MM-DD
 const parseDateParts = (dateString: string | undefined): DateParts => {
     if (!dateString) return { day: '', month: '', year: '' };
@@ -44,7 +52,7 @@ const parseDateParts = (dateString: string | undefined): DateParts => {
     return { day: '', month: '', year: '' };
 };
 
-// Função para garantir que LaborDetails tenham IDs únicos (OtherCosts removido)
+// Função para garantir que LaborDetails e OtherCosts tenham IDs únicos no estado inicial
 const ensureUniqueIds = (estimate: Estimate): Estimate => {
     const newEstimate = JSON.parse(JSON.stringify(estimate));
     
@@ -53,7 +61,7 @@ const ensureUniqueIds = (estimate: Estimate): Estimate => {
         newEstimate.totals = {
             ingredients: 0,
             labor: 0,
-            otherCosts: [], // Mantendo o campo, mas vazio, para compatibilidade de tipo
+            otherCosts: DEFAULT_OTHER_COSTS, // Usando custos padrão se não houver
             tax: 0,
             totalCost: 0,
             suggestedPrice: 0,
@@ -62,14 +70,22 @@ const ensureUniqueIds = (estimate: Estimate): Estimate => {
         } as EstimateTotals;
     }
     
+    // Se o orçamento for novo (temp-), inicializa otherCosts com os padrões
+    if (newEstimate.estimateId.startsWith('temp-') && (!newEstimate.totals.otherCosts || newEstimate.totals.otherCosts.length === 0)) {
+        newEstimate.totals.otherCosts = DEFAULT_OTHER_COSTS;
+    }
+    
     // 2. LaborDetails: Garante que é um array e adiciona IDs
     newEstimate.totals.laborDetails = (newEstimate.totals.laborDetails || []).map((detail: LaborDetail) => ({
         ...detail,
         id: detail.id || `labor-${Date.now()}-${Math.random()}`,
     }));
     
-    // 3. Garante que otherCosts é um array vazio
-    newEstimate.totals.otherCosts = [];
+    // 3. OtherCosts: Garante que é um array e adiciona IDs
+    newEstimate.totals.otherCosts = (newEstimate.totals.otherCosts || []).map((cost: OtherCost) => ({
+        ...cost,
+        id: cost.id || `other-${Date.now()}-${Math.random()}`,
+    }));
     
     return newEstimate;
 };
@@ -126,6 +142,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
   const [margin, setMargin] = useState(40);
   const [taxRate, setTaxRate] = useState(8); // Novo estado para a taxa de imposto (em %)
   const [isLaborExpanded, setIsLaborExpanded] = useState(false);
+  const [isOtherCostsExpanded, setIsOtherCostsExpanded] = useState(false); // Novo estado para Outros Custos
   const [isProductionExpanded, setIsProductionExpanded] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState<Record<number, boolean>>({});
   const [isExporting, setIsExporting] = useState(false); 
@@ -175,8 +192,9 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
         return acc + ingredients.reduce((subAcc, item) => subAcc + (item.totalCost || 0), 0);
     }, 0);
     
-    // REMOVIDO: otherCostsTotal = otherCosts.reduce((acc, cost) => acc + (cost.cost || 0), 0);
-    const otherCostsTotal = 0; // Força a zero, pois a funcionalidade foi removida
+    // Inclui OtherCosts no cálculo
+    const otherCostsTotal = otherCosts.reduce((acc, cost) => acc + (cost.cost || 0), 0);
+    newTotals.otherCosts = otherCosts; // Atualiza os detalhes no objeto totals
 
     // Recalculate labor total based on laborDetails
     const laborTotal = laborDetails.reduce((acc, d) => acc + (d.totalCost || 0), 0) || 0;
@@ -186,13 +204,10 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
     const kitchenStaffCost = (laborDetails || []).filter(d => d.role.toLowerCase().includes('cozinheir') || d.role.toLowerCase().includes('auxiliar')).reduce((acc, d) => acc + (d.totalCost || 0), 0) || 0;
     newTotals.productionCost = (newTotals.ingredients || 0) + kitchenStaffCost;
     
-    // Tax calculation based on ingredients + labor + other costs (otherCostsTotal agora é 0)
+    // Tax calculation based on ingredients + labor + other costs
     const baseForTax = (newTotals.ingredients || 0) + (newTotals.labor || 0) + otherCostsTotal;
     newTotals.tax = baseForTax * (currentTaxRate / 100);
     newTotals.totalCost = baseForTax + (newTotals.tax || 0);
-    
-    // Garante que otherCosts é um array vazio
-    newTotals.otherCosts = [];
     
     return newTotals as EstimateTotals; // Garantindo que o retorno seja EstimateTotals completo
   }, []);
@@ -214,8 +229,8 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
               item.totalCost = item.qty * item.unitCost;
           }
 
-          // otherCosts é passado como array vazio, pois foi removido da interface
-          const newTotals = recalculateTotals(newMenuItems, [], prevEst.totals.laborDetails || [], taxRate);
+          // otherCosts é passado do estado anterior
+          const newTotals = recalculateTotals(newMenuItems, prevEst.totals.otherCosts || [], prevEst.totals.laborDetails || [], taxRate);
           
           // Atualiza o estado sem adicionar ao histórico (addToHistory: false)
           return {...prevEst, menuItems: newMenuItems, totals: newTotals };
@@ -245,8 +260,8 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
           // Recalcula o totalCost para este item
           detail.totalCost = detail.count * detail.costPerUnit;
 
-          // otherCosts é passado como array vazio
-          const newTotals = recalculateTotals(prevEst.menuItems, [], newLaborDetails, taxRate);
+          // otherCosts é passado do estado anterior
+          const newTotals = recalculateTotals(prevEst.menuItems, prevEst.totals.otherCosts || [], newLaborDetails, taxRate);
           
           // Atualiza o estado
           return {...prevEst, totals: newTotals };
@@ -262,8 +277,8 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
               costPerUnit: 0,
               totalCost: 0,
           }];
-          // otherCosts é passado como array vazio
-          const newTotals = recalculateTotals(prevEst.menuItems, [], newLaborDetails, taxRate);
+          // otherCosts é passado do estado anterior
+          const newTotals = recalculateTotals(prevEst.menuItems, prevEst.totals.otherCosts || [], newLaborDetails, taxRate);
           // Adiciona ao histórico (padrão: true)
           return {...prevEst, totals: newTotals };
       });
@@ -275,8 +290,8 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
           if (currentLaborDetails.length === 0) return prevEst;
           
           const newLaborDetails = currentLaborDetails.filter(d => d.id !== id);
-          // otherCosts é passado como array vazio
-          const newTotals = recalculateTotals(prevEst.menuItems, [], newLaborDetails, taxRate);
+          // otherCosts é passado do estado anterior
+          const newTotals = recalculateTotals(prevEst.menuItems, prevEst.totals.otherCosts || [], newLaborDetails, taxRate);
           // Adiciona ao histórico (padrão: true)
           return {...prevEst, totals: newTotals };
       });
@@ -292,8 +307,8 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
               unitCost: 0,
               totalCost: 0,
           });
-          // otherCosts é passado como array vazio
-          const newTotals = recalculateTotals(newMenuItems, [], prevEst.totals.laborDetails || [], taxRate);
+          // otherCosts é passado do estado anterior
+          const newTotals = recalculateTotals(newMenuItems, prevEst.totals.otherCosts || [], prevEst.totals.laborDetails || [], taxRate);
           // Adiciona ao histórico (padrão: true)
           return {...prevEst, menuItems: newMenuItems, totals: newTotals };
       });
@@ -303,12 +318,67 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
       setEstimate(prevEst => {
           const newMenuItems = JSON.parse(JSON.stringify(prevEst.menuItems));
           newMenuItems[menuItemIndex].ingredients.splice(itemIndex, 1);
-          // otherCosts é passado como array vazio
-          const newTotals = recalculateTotals(newMenuItems, [], prevEst.totals.laborDetails || [], taxRate);
+          // otherCosts é passado do estado anterior
+          const newTotals = recalculateTotals(newMenuItems, prevEst.totals.otherCosts || [], prevEst.totals.laborDetails || [], taxRate);
           // Adiciona ao histórico (padrão: true)
           return {...prevEst, menuItems: newMenuItems, totals: newTotals };
       });
   };
+  
+  // --- Handlers for Other Costs ---
+  const handleOtherCostChange = (id: string, field: keyof Omit<OtherCost, 'id'>, value: string, addToHistory: boolean = false) => {
+      setEstimate(prevEst => {
+          const currentOtherCosts = prevEst.totals.otherCosts || [];
+          if (currentOtherCosts.length === 0) return prevEst;
+
+          const newOtherCosts = JSON.parse(JSON.stringify(currentOtherCosts));
+          const index = newOtherCosts.findIndex((c: OtherCost) => c.id === id);
+          if (index === -1) return prevEst;
+          
+          const cost = newOtherCosts[index];
+
+          if (field === 'name') {
+              cost[field] = value;
+          } else {
+              const numericValue = parseFloat(value) || 0;
+              (cost as any)[field] = numericValue;
+          }
+
+          // Recalcula os totais
+          const newTotals = recalculateTotals(prevEst.menuItems, newOtherCosts, prevEst.totals.laborDetails || [], taxRate);
+          
+          // Atualiza o estado
+          return {...prevEst, totals: newTotals };
+      }, addToHistory);
+  };
+
+  const handleAddOtherCost = () => {
+      setEstimate(prevEst => {
+          const newOtherCosts = [...(prevEst.totals.otherCosts || []), {
+              id: `other-${Date.now()}-${Math.random()}`, // ID ÚNICO
+              name: 'Novo Custo Fixo',
+              cost: 0,
+          }];
+          // Recalcula os totais
+          const newTotals = recalculateTotals(prevEst.menuItems, newOtherCosts, prevEst.totals.laborDetails || [], taxRate);
+          // Adiciona ao histórico (padrão: true)
+          return {...prevEst, totals: newTotals };
+      });
+  };
+
+  const handleRemoveOtherCost = (id: string) => {
+      setEstimate(prevEst => {
+          const currentOtherCosts = prevEst.totals.otherCosts || [];
+          if (currentOtherCosts.length === 0) return prevEst;
+          
+          const newOtherCosts = currentOtherCosts.filter(c => c.id !== id);
+          // Recalcula os totais
+          const newTotals = recalculateTotals(prevEst.menuItems, newOtherCosts, prevEst.totals.laborDetails || [], taxRate);
+          // Adiciona ao histórico (padrão: true)
+          return {...prevEst, totals: newTotals };
+      });
+  };
+  // --- End Handlers for Other Costs ---
   
   // REMOVIDO: handleOtherCostChange
   // REMOVIDO: handleAddOtherCost
@@ -327,8 +397,8 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
           const newMenuItem = await generateMenuItemDetails(newRecipeName, estimate.guests);
           
           const newMenuItems = [...estimate.menuItems, newMenuItem];
-          // otherCosts é passado como array vazio
-          const newTotals = recalculateTotals(newMenuItems, [], estimate.totals.laborDetails || [], taxRate);
+          // otherCosts é passado do estado anterior
+          const newTotals = recalculateTotals(newMenuItems, estimate.totals.otherCosts || [], estimate.totals.laborDetails || [], taxRate);
           
           // Adiciona ao histórico (padrão: true)
           setEstimate(prevEst => ({
@@ -400,8 +470,8 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
           }));
           
           // 4. Recalcula os totais financeiros com os novos ingredientes
-          // otherCosts é passado como array vazio
-          const newTotals = recalculateTotals(updatedMenuItems, [], prevEst.totals.laborDetails || [], taxRate);
+          // otherCosts é passado do estado anterior
+          const newTotals = recalculateTotals(updatedMenuItems, prevEst.totals.otherCosts || [], prevEst.totals.laborDetails || [], taxRate);
           
           return {
               ...prevEst,
@@ -505,8 +575,8 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
       
       // Recalcula os totais imediatamente (sem adicionar ao histórico)
       setEstimate(prevEst => {
-          // otherCosts é passado como array vazio
-          const newTotals = recalculateTotals(prevEst.menuItems, [], prevEst.totals.laborDetails || [], newRate);
+          // otherCosts é passado do estado anterior
+          const newTotals = recalculateTotals(prevEst.menuItems, prevEst.totals.otherCosts || [], prevEst.totals.laborDetails || [], newRate);
           return { ...prevEst, totals: newTotals };
       }, false);
   };
@@ -608,20 +678,18 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
           ]);
       });
 
-      // 3. Outros Custos (Removido da interface, mas mantido no CSV se houver dados antigos)
-      // if ((updatedTotals.otherCosts || []).length > 0) {
-      //     (updatedTotals.otherCosts || []).forEach(cost => {
-      //         rows.push([
-      //             cost.name,
-      //             '1', // Quantidade fixa 1 para custos fixos
-      //             'Unidade',
-      //             formatNumber(cost.cost),
-      //             formatNumber(cost.cost),
-      //             'Outros Custos',
-      //             DATE_CREATED
-      //         ]);
-      //     });
-      // }
+      // 3. Outros Custos
+      (updatedTotals.otherCosts || []).forEach(cost => {
+          rows.push([
+              cost.name,
+              '1', // Quantidade fixa 1 para custos fixos
+              'Unidade',
+              formatNumber(cost.cost),
+              formatNumber(cost.cost),
+              'Outros Custos',
+              DATE_CREATED
+          ]);
+      });
       
       // 4. Resumo (Custo Total e Preço Sugerido)
       rows.push([
@@ -667,10 +735,9 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
     const safeTotals = estimate.totals || { otherCosts: [], laborDetails: [] };
     
     // Recalcula os totais usando a taxa de imposto atual
-    // otherCosts é passado como array vazio
     const recalculated = recalculateTotals(
         estimate.menuItems, 
-        [], 
+        safeTotals.otherCosts || [], 
         safeTotals.laborDetails || [], 
         taxRate
     );
@@ -680,8 +747,8 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
     return { ...recalculated, suggestedPrice };
   }, [
       estimate.menuItems, 
-      // Removendo dependência de estimate.totals?.otherCosts
-      estimate.totals?.laborDetails || [], 
+      estimate.totals?.otherCosts,
+      estimate.totals?.laborDetails, 
       margin, 
       taxRate, 
       recalculateTotals
@@ -696,6 +763,8 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
         return null;
     }
     
+    const otherCostsTotal = (updatedTotals.otherCosts || []).reduce((acc, cost) => acc + (cost.cost || 0), 0);
+
     return (
         <div className="bg-white p-6 rounded-xl shadow-lg border border-slate-200">
             <h3 className="text-xl font-bold text-slate-800 border-b pb-3 mb-4">Resumo Financeiro</h3>
@@ -771,7 +840,63 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                     </div>
                 )}
                 
-                {/* REMOVIDO: Seção Outros Custos */}
+                {/* Custo Outros Custos */}
+                <div 
+                  className={`p-1 -m-1 rounded transition ${isExporting ? 'cursor-default' : 'cursor-pointer hover:bg-slate-50'}`}
+                  onClick={() => !isExporting && setIsOtherCostsExpanded(!isOtherCostsExpanded)}
+                  aria-expanded={isOtherCostsExpanded}
+                >
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Outros Custos:</span>
+                    <span className="font-medium flex items-center">
+                      {formatCurrency(otherCostsTotal)}
+                      {((updatedTotals.otherCosts || []).length > 0 && !isExporting) && (
+                        <ChevronDown className={`w-4 h-4 ml-2 text-slate-400 transition-transform duration-200 ${isOtherCostsExpanded ? 'rotate-180' : ''}`} />
+                      )}
+                    </span>
+                  </div>
+                </div>
+                {/* Conteúdo Outros Custos */}
+                {(isOtherCostsExpanded || isExporting) && (updatedTotals.otherCosts || []).length > 0 && (
+                    <div className={`pl-4 mt-2 space-y-2 border-l-2 border-slate-200 ${isExporting ? 'bg-white' : ''}`}>
+                      {(updatedTotals.otherCosts || []).map((cost) => (
+                          <div key={cost.id} className="flex items-center justify-between group py-1">
+                              <input 
+                                  type="text"
+                                  value={cost.name}
+                                  onChange={(e) => handleOtherCostChange(cost.id, 'name', e.target.value, false)}
+                                  onBlur={(e) => handleOtherCostChange(cost.id, 'name', e.target.value, true)}
+                                  placeholder="Nome do Custo"
+                                  className={`text-slate-700 bg-transparent p-1 rounded border ${isExporting ? 'border-transparent' : 'border-slate-300 focus:border-indigo-500 focus:ring-indigo-500'} w-3/5 text-sm`}
+                                  readOnly={isExporting}
+                              />
+                              <div className="flex items-center">
+                                  <span className="text-slate-500 mr-1">R$</span>
+                                  <input 
+                                      type="number"
+                                      step="0.01"
+                                      value={cost.cost}
+                                      onChange={(e) => handleOtherCostChange(cost.id, 'cost', e.target.value, false)}
+                                      onBlur={(e) => handleOtherCostChange(cost.id, 'cost', e.target.value, true)}
+                                      className={`w-20 bg-transparent p-1 rounded border ${isExporting ? 'border-transparent' : 'border-slate-300 focus:border-indigo-500 focus:ring-indigo-500'} text-sm text-right`}
+                                      readOnly={isExporting}
+                                  />
+                                  {!isExporting && (
+                                      <button onClick={() => handleRemoveOtherCost(cost.id)} className="ml-2 text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded">
+                                          <Trash2 className="w-3 h-3" />
+                                      </button>
+                                  )}
+                              </div>
+                          </div>
+                      ))}
+                      {!isExporting && (
+                          <button onClick={handleAddOtherCost} className="mt-2 text-indigo-600 hover:text-indigo-800 text-xs font-semibold flex items-center p-1 -ml-1">
+                            <Plus className="w-3 h-3 mr-1" /> Adicionar Outro Custo
+                          </button>
+                      )}
+                    </div>
+                )}
+                {/* Fim Outros Custos */}
 
                 {/* Campo de Edição de Impostos */}
                 <div className="flex justify-between pt-2 border-t border-slate-200 items-center">
@@ -1059,7 +1184,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                 </div>
                 {/* End Editable Consumption Averages Section */}
                 
-                {/* NOVO TÍTULO AQUI */}
+                {/* TÍTULO DA SEÇÃO DE ITENS */}
                 <h3 className="text-xl font-bold text-slate-800 mb-4">Itens para a entrega do buffet</h3>
 
                 <div className="space-y-6">
@@ -1168,6 +1293,62 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                       );
                     })}
                 </div>
+                
+                {/* Outros Custos Section (Sanfona) */}
+                <div className="mt-8 border border-slate-200 rounded-lg overflow-hidden">
+                    <button 
+                        onClick={() => setIsOtherCostsExpanded(prev => !prev)}
+                        className={`flex justify-between items-center w-full p-4 bg-slate-50 hover:bg-slate-100 transition duration-150 ${isExporting ? 'cursor-default' : ''}`}
+                        disabled={isExporting}
+                    >
+                        <h3 className="text-lg font-semibold text-slate-700">Outros Custos</h3>
+                        {!isExporting && <ChevronDown className={`w-5 h-5 text-slate-500 transition-transform ${isOtherCostsExpanded ? 'rotate-180' : ''}`} />}
+                    </button>
+                    
+                    {(isOtherCostsExpanded || isExporting) && (
+                        <div className="p-4 bg-white space-y-3">
+                            <p className="text-sm text-slate-500 mb-3">Adicione custos fixos que não são ingredientes ou mão de obra detalhada (ex: aluguel de espaço, frete fixo, custos administrativos).</p>
+                            
+                            {(estimate.totals.otherCosts || []).map((cost) => (
+                                <div key={cost.id} className="flex items-center justify-between group py-1 border-b border-slate-100 last:border-b-0">
+                                    <input 
+                                        type="text"
+                                        value={cost.name}
+                                        onChange={(e) => handleOtherCostChange(cost.id, 'name', e.target.value, false)}
+                                        onBlur={(e) => handleOtherCostChange(cost.id, 'name', e.target.value, true)}
+                                        placeholder="Nome do Custo"
+                                        className={`text-slate-700 bg-transparent p-1 rounded border ${isExporting ? 'border-transparent' : 'border-slate-300 focus:border-indigo-500 focus:ring-indigo-500'} w-3/5 text-sm`}
+                                        readOnly={isExporting}
+                                    />
+                                    <div className="flex items-center">
+                                        <span className="text-slate-500 mr-1">R$</span>
+                                        <input 
+                                            type="number"
+                                            step="0.01"
+                                            value={cost.cost}
+                                            onChange={(e) => handleOtherCostChange(cost.id, 'cost', e.target.value, false)}
+                                            onBlur={(e) => handleOtherCostChange(cost.id, 'cost', e.target.value, true)}
+                                            className={`w-20 bg-transparent p-1 rounded border ${isExporting ? 'border-transparent' : 'border-slate-300 focus:border-indigo-500 focus:ring-indigo-500'} text-sm text-right`}
+                                            readOnly={isExporting}
+                                        />
+                                        {!isExporting && (
+                                            <button onClick={() => handleRemoveOtherCost(cost.id)} className="ml-2 text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded">
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                            
+                            {!isExporting && (
+                                <button onClick={handleAddOtherCost} className="mt-4 text-indigo-600 hover:text-indigo-800 text-sm font-semibold flex items-center p-1 -ml-1">
+                                    <Plus className="w-4 h-4 mr-1" /> Adicionar Outro Custo
+                                </button>
+                            )}
+                        </div>
+                    )}
+                </div>
+                {/* End Outros Custos Section */}
                 
                 {/* Add Recipe Section (Hidden during export) */}
                 {!isExporting && (
