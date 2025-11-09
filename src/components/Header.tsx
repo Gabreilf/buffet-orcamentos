@@ -6,38 +6,23 @@ import { User } from 'lucide-react';
 
 interface HeaderProps {
   onLogoClick: () => void;
-  session: any; // Pass session data to conditionally show logout
-  onProfileClick: () => void; // Nova prop para navegar para a página de perfil
-  currentPlanName: string; // Nova prop para exibir o nome do plano
+  session: any; // Pass session data to conditionally show profile button
+  onProfileClick: () => void; // Prop para navegar para a página de perfil
+  currentPlanName: string; // Prop para exibir o nome do plano
 }
 
 const Header: React.FC<HeaderProps> = ({ onLogoClick, session, onProfileClick, currentPlanName }) => {
-  const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      toast.error('Falha ao sair: ' + error.message);
-    } else {
-      toast.success('Você saiu com sucesso!');
-    }
-  };
+  // Removendo handleLogout, pois a ação será movida para ProfileAndPlans
 
   return (
     <header className="bg-white shadow-md">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 relative">
           
-          {/* Lado Esquerdo: Botão de Sair */}
-          {session && (
-            <div className="absolute left-4 sm:left-6 lg:left-8">
-              <button
-                onClick={handleLogout}
-                className="text-sm font-medium text-red-500 hover:text-red-700 transition py-2 px-3 rounded-lg hover:bg-red-50"
-                title="Sair da Conta"
-              >
-                Sair
-              </button>
-            </div>
-          )}
+          {/* Lado Esquerdo: Vazio (Botão Sair removido) */}
+          <div className="w-16 sm:w-20 lg:w-24">
+            {/* Espaçador para manter o alinhamento centralizado do logo */}
+          </div>
           
           {/* Logo e Título Centralizados */}
           <div 

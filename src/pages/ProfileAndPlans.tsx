@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Check, Infinity, Zap, User, Loader2, Save, ChevronDown, Upload } from 'lucide-react';
+import { Check, Infinity, Zap, User, Loader2, Save, ChevronDown, Upload, LogOut } from 'lucide-react';
 import { supabase } from '../integrations/supabase/client';
 import { fetchProfile, updateProfile, uploadAvatar } from '../services/profileService';
 import toast from 'react-hot-toast';
@@ -114,6 +114,15 @@ const ProfileAndPlans: React.FC = () => {
         }
     };
     
+    const handleLogout = async () => {
+        const { error } = await supabase.auth.signOut();
+        if (error) {
+            toast.error('Falha ao sair: ' + error.message);
+        } else {
+            toast.success('Você saiu com sucesso!');
+        }
+    };
+    
     const getPlanDetails = () => {
         if (!profile) return { name: 'Teste', limit: '3 consultas', color: 'text-slate-500' };
         
@@ -205,7 +214,7 @@ const ProfileAndPlans: React.FC = () => {
                     {/* Card de Status do Plano */}
                     <div className="bg-white p-6 rounded-xl shadow-lg border border-slate-200">
                         
-                        {/* Botão de Suporte WhatsApp (Movido para o topo) */}
+                        {/* Botão de Suporte WhatsApp */}
                         <a
                             href="https://wa.me/5521973741689"
                             target="_blank"
@@ -344,6 +353,18 @@ const ProfileAndPlans: React.FC = () => {
                                 </button>
                             </form>
                         )}
+                    </div>
+                    
+                    {/* NOVO CARD: Botão de Sair */}
+                    <div className="bg-white p-6 rounded-xl shadow-lg border border-slate-200">
+                        <h3 className="text-xl font-bold text-slate-800 border-b pb-3 mb-4">Sair da Conta</h3>
+                        <p className="text-sm text-slate-500 mb-4">Clique abaixo para encerrar sua sessão com segurança.</p>
+                        <button
+                            onClick={handleLogout}
+                            className="w-full bg-red-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-red-700 transition duration-300 ease-in-out shadow-lg flex items-center justify-center"
+                        >
+                            <LogOut className="w-5 h-5 mr-2" /> Sair
+                        </button>
                     </div>
                 </div>
 
