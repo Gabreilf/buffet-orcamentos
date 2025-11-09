@@ -3,6 +3,7 @@ import { Estimate, CustomCost } from '../types';
 import { updateEstimate } from '../services/estimateService';
 import toast from 'react-hot-toast';
 import PlanStatusBanner from '../components/PlanStatusBanner'; // Importando o novo componente
+import SupportButton from '../components/SupportButton'; // Importando o novo botão de suporte
 
 interface Profile {
     plan_type: string;
@@ -215,6 +216,14 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   return (
     <div className="container mx-auto">
+        
+        {/* Botão de Suporte acima do banner de status */}
+        {userProfile && userProfile.is_active && (
+            <div className="flex justify-end mb-4">
+                <SupportButton />
+            </div>
+        )}
+        
         {userProfile && userProfile.is_active && (
             <PlanStatusBanner profile={userProfile} onUpgradeClick={onViewPlans} />
         )}
@@ -222,8 +231,6 @@ const Dashboard: React.FC<DashboardProps> = ({
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
             <h2 className="text-3xl font-bold text-slate-800 mb-4 sm:mb-0">Painel de Controle</h2>
             <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3 w-full sm:w-auto">
-                {/* Botão de Suporte WhatsApp REMOVIDO daqui */}
-                
                 <button
                 onClick={onCreateNew}
                 className="bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 transition duration-300 ease-in-out shadow-lg flex items-center justify-center"
