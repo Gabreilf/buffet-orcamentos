@@ -840,63 +840,11 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                     </div>
                 )}
                 
-                {/* Custo Outros Custos */}
-                <div 
-                  className={`p-1 -m-1 rounded transition ${isExporting ? 'cursor-default' : 'cursor-pointer hover:bg-slate-50'}`}
-                  onClick={() => !isExporting && setIsOtherCostsExpanded(!isOtherCostsExpanded)}
-                  aria-expanded={isOtherCostsExpanded}
-                >
-                  <div className="flex justify-between">
+                {/* Custo Outros Custos (Apenas o total) */}
+                <div className="flex justify-between">
                     <span className="text-slate-500">Outros Custos:</span>
-                    <span className="font-medium flex items-center">
-                      {formatCurrency(otherCostsTotal)}
-                      {((updatedTotals.otherCosts || []).length > 0 && !isExporting) && (
-                        <ChevronDown className={`w-4 h-4 ml-2 text-slate-400 transition-transform duration-200 ${isOtherCostsExpanded ? 'rotate-180' : ''}`} />
-                      )}
-                    </span>
-                  </div>
+                    <span className="font-medium">{formatCurrency(otherCostsTotal)}</span>
                 </div>
-                {/* Conteúdo Outros Custos */}
-                {(isOtherCostsExpanded || isExporting) && (updatedTotals.otherCosts || []).length > 0 && (
-                    <div className={`pl-4 mt-2 space-y-2 border-l-2 border-slate-200 ${isExporting ? 'bg-white' : ''}`}>
-                      {(updatedTotals.otherCosts || []).map((cost) => (
-                          <div key={cost.id} className="flex items-center justify-between group py-1">
-                              <input 
-                                  type="text"
-                                  value={cost.name}
-                                  onChange={(e) => handleOtherCostChange(cost.id, 'name', e.target.value, false)}
-                                  onBlur={(e) => handleOtherCostChange(cost.id, 'name', e.target.value, true)}
-                                  placeholder="Nome do Custo"
-                                  className={`text-slate-700 bg-transparent p-1 rounded border ${isExporting ? 'border-transparent' : 'border-slate-300 focus:border-indigo-500 focus:ring-indigo-500'} w-3/5 text-sm`}
-                                  readOnly={isExporting}
-                              />
-                              <div className="flex items-center">
-                                  <span className="text-slate-500 mr-1">R$</span>
-                                  <input 
-                                      type="number"
-                                      step="0.01"
-                                      value={cost.cost}
-                                      onChange={(e) => handleOtherCostChange(cost.id, 'cost', e.target.value, false)}
-                                      onBlur={(e) => handleOtherCostChange(cost.id, 'cost', e.target.value, true)}
-                                      className={`w-20 bg-transparent p-1 rounded border ${isExporting ? 'border-transparent' : 'border-slate-300 focus:border-indigo-500 focus:ring-indigo-500'} text-sm text-right`}
-                                      readOnly={isExporting}
-                                  />
-                                  {!isExporting && (
-                                      <button onClick={() => handleRemoveOtherCost(cost.id)} className="ml-2 text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded">
-                                          <Trash2 className="w-3 h-3" />
-                                      </button>
-                                  )}
-                              </div>
-                          </div>
-                      ))}
-                      {!isExporting && (
-                          <button onClick={handleAddOtherCost} className="mt-2 text-indigo-600 hover:text-indigo-800 text-xs font-semibold flex items-center p-1 -ml-1">
-                            <Plus className="w-3 h-3 mr-1" /> Adicionar Outro Custo
-                          </button>
-                      )}
-                    </div>
-                )}
-                {/* Fim Outros Custos */}
 
                 {/* Campo de Edição de Impostos */}
                 <div className="flex justify-between pt-2 border-t border-slate-200 items-center">
