@@ -5,8 +5,7 @@ import { generateMenuItemDetails } from '../services/geminiService';
 import { saveNewEstimate, updateEstimate } from '../services/estimateService';
 import toast from 'react-hot-toast';
 import { useUndoRedo } from '../hooks/useUndoRedo'; 
-import OtherCostItem from '../components/OtherCostItem'; // Importando o novo componente
-import LaborDetailItem from '../components/LaborDetailItem'; // Corrigido: Caminho correto
+import LaborDetailItem from '../components/LaborDetailItem'; // Mantendo LaborDetailItem
 
 interface EstimateResultProps {
   estimate: Estimate;
@@ -45,7 +44,7 @@ const parseDateParts = (dateString: string | undefined): DateParts => {
     return { day: '', month: '', year: '' };
 };
 
-// Função para garantir que OtherCosts e LaborDetails tenham IDs únicos
+// Função para garantir que LaborDetails tenham IDs únicos (OtherCosts removido)
 const ensureUniqueIds = (estimate: Estimate): Estimate => {
     const newEstimate = JSON.parse(JSON.stringify(estimate));
     
@@ -54,7 +53,7 @@ const ensureUniqueIds = (estimate: Estimate): Estimate => {
         newEstimate.totals = {
             ingredients: 0,
             labor: 0,
-            otherCosts: [],
+            otherCosts: [], // Mantendo o campo, mas vazio, para compatibilidade de tipo
             tax: 0,
             totalCost: 0,
             suggestedPrice: 0,
@@ -63,17 +62,14 @@ const ensureUniqueIds = (estimate: Estimate): Estimate => {
         } as EstimateTotals;
     }
     
-    // 2. OtherCosts: Garante que é um array e adiciona IDs
-    newEstimate.totals.otherCosts = (newEstimate.totals.otherCosts || []).map((cost: OtherCost) => ({
-        ...cost,
-        id: cost.id || `other-${Date.now()}-${Math.random()}`,
-    }));
-    
-    // 3. LaborDetails: Garante que é um array e adiciona IDs
+    // 2. LaborDetails: Garante que é um array e adiciona IDs
     newEstimate.totals.laborDetails = (newEstimate.totals.laborDetails || []).map((detail: LaborDetail) => ({
         ...detail,
         id: detail.id || `labor-${Date.now()}-${Math.random()}`,
     }));
+    
+    // 3. Garante que otherCosts é um array vazio
+    newEstimate.totals.otherCosts = [];
     
     return newEstimate;
 };
@@ -177,7 +173,8 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
         return acc + menuItem.ingredients.reduce((subAcc, item) => subAcc + (item.totalCost || 0), 0);
     }, 0);
     
-    const otherCostsTotal = otherCosts.reduce((acc, cost) => acc + (cost.cost || 0), 0);
+    // REMOVIDO: otherCostsTotal = otherCosts.reduce((acc, cost) => acc + (cost.cost || 0), 0);
+    const otherCostsTotal = 0; // Força a zero, pois a funcionalidade foi removida
 
     // Recalculate labor total based on laborDetails
     const laborTotal = laborDetails.reduce((acc, d) => acc + (d.totalCost || 0), 0) || 0;
@@ -187,14 +184,14 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
     const kitchenStaffCost = (laborDetails || []).filter(d => d.role.toLowerCase().includes('cozinheir') || d.role.toLowerCase().includes('auxiliar')).reduce((acc, d) => acc + (d.totalCost || 0), 0) || 0;
     newTotals.productionCost = (newTotals.ingredients || 0) + kitchenStaffCost;
     
-    // Tax calculation based on ingredients + labor + other costs
+    // Tax calculation based on ingredients + labor + other costs (otherCostsTotal agora é 0)
     const baseForTax = (newTotals.ingredients || 0) + (newTotals.labor || 0) + otherCostsTotal;
     newTotals.tax = baseForTax * (currentTaxRate / 100);
     newTotals.totalCost = baseForTax + (newTotals.tax || 0);
     
-    newTotals.otherCosts = otherCosts;
+    // Garante que otherCosts é um array vazio
+    newTotals.otherCosts = [];
     
-    // O preço sugerido será calculado no useMemo principal
     return newTotals as EstimateTotals; // Garantindo que o retorno seja EstimateTotals completo
   }, []);
 
@@ -215,7 +212,8 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
               item.totalCost = item.qty * item.unitCost;
           }
 
-          const newTotals = recalculateTotals(newMenuItems, prevEst.totals.otherCosts || [], prevEst.totals.laborDetails || [], taxRate);
+          // otherCosts é passado como array vazio, pois foi removido da interface
+          const newTotals = recalculateTotals(newMenuItems, [], prevEst.totals.laborDetails || [], taxRate);
           
           // Atualiza o estado sem adicionar ao histórico (addToHistory: false)
           return {...prevEst, menuItems: newMenuItems, totals: newTotals };
@@ -245,7 +243,8 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
           // Recalcula o totalCost para este item
           detail.totalCost = detail.count * detail.costPerUnit;
 
-          const newTotals = recalculateTotals(prevEst.menuItems, prevEst.totals.otherCosts || [], newLaborDetails, taxRate);
+          // otherCosts é passado como array vazio
+          const newTotals = recalculateTotals(prevEst.menuItems, [], newLaborDetails, taxRate);
           
           // Atualiza o estado
           return {...prevEst, totals: newTotals };
@@ -261,7 +260,8 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
               costPerUnit: 0,
               totalCost: 0,
           }];
-          const newTotals = recalculateTotals(prevEst.menuItems, prevEst.totals.otherCosts || [], newLaborDetails, taxRate);
+          // otherCosts é passado como array vazio
+          const newTotals = recalculateTotals(prevEst.menuItems, [], newLaborDetails, taxRate);
           // Adiciona ao histórico (padrão: true)
           return {...prevEst, totals: newTotals };
       });
@@ -273,7 +273,8 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
           if (currentLaborDetails.length === 0) return prevEst;
           
           const newLaborDetails = currentLaborDetails.filter(d => d.id !== id);
-          const newTotals = recalculateTotals(prevEst.menuItems, prevEst.totals.otherCosts || [], newLaborDetails, taxRate);
+          // otherCosts é passado como array vazio
+          const newTotals = recalculateTotals(prevEst.menuItems, [], newLaborDetails, taxRate);
           // Adiciona ao histórico (padrão: true)
           return {...prevEst, totals: newTotals };
       });
@@ -289,7 +290,8 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
               unitCost: 0,
               totalCost: 0,
           });
-          const newTotals = recalculateTotals(newMenuItems, prevEst.totals.otherCosts || [], prevEst.totals.laborDetails || [], taxRate);
+          // otherCosts é passado como array vazio
+          const newTotals = recalculateTotals(newMenuItems, [], prevEst.totals.laborDetails || [], taxRate);
           // Adiciona ao histórico (padrão: true)
           return {...prevEst, menuItems: newMenuItems, totals: newTotals };
       });
@@ -299,74 +301,16 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
       setEstimate(prevEst => {
           const newMenuItems = JSON.parse(JSON.stringify(prevEst.menuItems));
           newMenuItems[menuItemIndex].ingredients.splice(itemIndex, 1);
-          const newTotals = recalculateTotals(newMenuItems, prevEst.totals.otherCosts || [], prevEst.totals.laborDetails || [], taxRate);
+          // otherCosts é passado como array vazio
+          const newTotals = recalculateTotals(newMenuItems, [], prevEst.totals.laborDetails || [], taxRate);
           // Adiciona ao histórico (padrão: true)
           return {...prevEst, menuItems: newMenuItems, totals: newTotals };
       });
   };
   
-  // Função de mudança para OtherCost (usada no onChange para números e onBlur para todos)
-  const handleOtherCostChange = useCallback((id: string, field: keyof OtherCost, value: string, addToHistory: boolean = false) => {
-      // Usando a forma funcional para garantir que estamos trabalhando com o estado mais recente
-      setEstimate(prevEst => {
-          // 1. Garante que otherCosts é um array
-          const currentOtherCosts = prevEst.totals.otherCosts || [];
-          
-          // 2. Cria uma cópia profunda para modificação
-          const newOtherCosts = JSON.parse(JSON.stringify(currentOtherCosts));
-          
-          const index = newOtherCosts.findIndex((c: OtherCost) => c.id === id);
-          if (index === -1) return prevEst;
-          
-          const item = newOtherCosts[index];
-          
-          // 3. Atualiza o campo
-          if (field === 'cost') {
-              // Para campos numéricos, converte o valor
-              item[field] = parseFloat(value) || 0;
-          } else {
-              // Para campos de texto (name)
-              item[field] = value;
-          }
-          
-          // 4. Recalcula os totais
-          const newTotals = recalculateTotals(prevEst.menuItems, newOtherCosts, prevEst.totals.laborDetails || [], taxRate);
-          
-          // 5. Retorna o novo estado completo
-          return {
-              ...prevEst, 
-              totals: {
-                  ...prevEst.totals,
-                  ...newTotals,
-                  otherCosts: newOtherCosts, // Garante que a lista de custos atualizada está no objeto totals
-              }
-          };
-      }, addToHistory);
-  }, [recalculateTotals, taxRate, setEstimate]); // Dependências estáveis
-  
-  const handleAddOtherCost = () => {
-      setEstimate(prevEst => {
-          const newOtherCosts = JSON.parse(JSON.stringify(prevEst.totals.otherCosts || []));
-          newOtherCosts.push({ 
-              id: `other-${Date.now()}-${Math.random()}`, // ID ÚNICO
-              name: 'Novo Custo', 
-              cost: 0 
-          });
-          const newTotals = recalculateTotals(prevEst.menuItems, newOtherCosts, prevEst.totals.laborDetails || [], taxRate);
-          // Adiciona ao histórico (padrão: true)
-          return {...prevEst, totals: newTotals };
-      });
-  };
-  
-  const handleRemoveOtherCost = (id: string) => {
-      setEstimate(prevEst => {
-          const currentOtherCosts = prevEst.totals.otherCosts || [];
-          const newOtherCosts = currentOtherCosts.filter(c => c.id !== id);
-          const newTotals = recalculateTotals(prevEst.menuItems, newOtherCosts, prevEst.totals.laborDetails || [], taxRate);
-          // Adiciona ao histórico (padrão: true)
-          return {...prevEst, totals: newTotals };
-      });
-  };
+  // REMOVIDO: handleOtherCostChange
+  // REMOVIDO: handleAddOtherCost
+  // REMOVIDO: handleRemoveOtherCost
 
   const handleAddRecipe = async () => {
       if (!newRecipeName.trim()) {
@@ -381,7 +325,8 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
           const newMenuItem = await generateMenuItemDetails(newRecipeName, estimate.guests);
           
           const newMenuItems = [...estimate.menuItems, newMenuItem];
-          const newTotals = recalculateTotals(newMenuItems, estimate.totals.otherCosts || [], estimate.totals.laborDetails || [], taxRate);
+          // otherCosts é passado como array vazio
+          const newTotals = recalculateTotals(newMenuItems, [], estimate.totals.laborDetails || [], taxRate);
           
           // Adiciona ao histórico (padrão: true)
           setEstimate({
@@ -453,7 +398,8 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
           }));
           
           // 4. Recalcula os totais financeiros com os novos ingredientes
-          const newTotals = recalculateTotals(updatedMenuItems, prevEst.totals.otherCosts || [], prevEst.totals.laborDetails || [], taxRate);
+          // otherCosts é passado como array vazio
+          const newTotals = recalculateTotals(updatedMenuItems, [], prevEst.totals.laborDetails || [], taxRate);
           
           return {
               ...prevEst,
@@ -557,7 +503,8 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
       
       // Recalcula os totais imediatamente (sem adicionar ao histórico)
       setEstimate(prevEst => {
-          const newTotals = recalculateTotals(prevEst.menuItems, prevEst.totals.otherCosts || [], prevEst.totals.laborDetails || [], newRate);
+          // otherCosts é passado como array vazio
+          const newTotals = recalculateTotals(prevEst.menuItems, [], prevEst.totals.laborDetails || [], newRate);
           return { ...prevEst, totals: newTotals };
       }, false);
   };
@@ -659,18 +606,20 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
           ]);
       });
 
-      // 3. Outros Custos
-      (updatedTotals.otherCosts || []).forEach(cost => {
-          rows.push([
-              cost.name,
-              '1', // Quantidade fixa 1 para custos fixos
-              'Unidade',
-              formatNumber(cost.cost),
-              formatNumber(cost.cost),
-              'Outros Custos',
-              DATE_CREATED
-          ]);
-      });
+      // 3. Outros Custos (Removido da interface, mas mantido no CSV se houver dados antigos)
+      // if ((updatedTotals.otherCosts || []).length > 0) {
+      //     (updatedTotals.otherCosts || []).forEach(cost => {
+      //         rows.push([
+      //             cost.name,
+      //             '1', // Quantidade fixa 1 para custos fixos
+      //             'Unidade',
+      //             formatNumber(cost.cost),
+      //             formatNumber(cost.cost),
+      //             'Outros Custos',
+      //             DATE_CREATED
+      //         ]);
+      //     });
+      // }
       
       // 4. Resumo (Custo Total e Preço Sugerido)
       rows.push([
@@ -716,9 +665,10 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
     const safeTotals = estimate.totals || { otherCosts: [], laborDetails: [] };
     
     // Recalcula os totais usando a taxa de imposto atual
+    // otherCosts é passado como array vazio
     const recalculated = recalculateTotals(
         estimate.menuItems, 
-        safeTotals.otherCosts || [], 
+        [], 
         safeTotals.laborDetails || [], 
         taxRate
     );
@@ -728,8 +678,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
     return { ...recalculated, suggestedPrice };
   }, [
       estimate.menuItems, 
-      // Usando fallback no array de dependências para evitar o erro de leitura de undefined
-      estimate.totals?.otherCosts || [], 
+      // Removendo dependência de estimate.totals?.otherCosts
       estimate.totals?.laborDetails || [], 
       margin, 
       taxRate, 
@@ -820,9 +769,9 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                     </div>
                 )}
                 
-                <div className="pt-2 border-t border-slate-100">
+                {/* REMOVIDO: Seção Outros Custos */}
+                {/* <div className="pt-2 border-t border-slate-100">
                   <h4 className="text-xs font-semibold text-slate-600 mb-2">Outros Custos</h4>
-                  {/* Corrigido: updatedTotals.otherCosts é garantido como objeto pelo useMemo, mas o fallback é bom */}
                   {(updatedTotals.otherCosts || []).map((cost) => (
                       <OtherCostItem
                           key={cost.id}
@@ -837,7 +786,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                         <Plus className="w-3 h-3 mr-1" /> Adicionar Custo
                       </button>
                   )}
-                </div>
+                </div> */}
 
                 {/* Campo de Edição de Impostos */}
                 <div className="flex justify-between pt-2 border-t border-slate-200 items-center">
