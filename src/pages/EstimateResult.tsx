@@ -141,8 +141,8 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
   
   const [margin, setMargin] = useState(40);
   const [taxRate, setTaxRate] = useState(8); // Novo estado para a taxa de imposto (em %)
-  const [isLaborExpanded, setIsLaborExpanded] = useState(false);
-  const [isOtherCostsExpanded, setIsOtherCostsExpanded] = useState(false); // Estado para a sanfona de edição na coluna principal
+  const [isLaborExpanded, setIsLaborExpanded] = useState(false); // Estado para a sanfona de Mão de Obra na coluna principal
+  const [isOtherCostsExpanded, setIsOtherCostsExpanded] = useState(false); // Estado para a sanfona de Outros Custos na coluna principal
   const [isProductionExpanded, setIsProductionExpanded] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState<Record<number, boolean>>({});
   const [isExporting, setIsExporting] = useState(false); 
@@ -192,7 +192,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
         return acc + ingredients.reduce((subAcc, item) => subAcc + (item.totalCost || 0), 0);
     }, 0);
     
-    // Inclui OtherCosts no cálculo (apenas para salvar no objeto totals, mas não para o Custo Total)
+    // Inclui OtherCosts no cálculo (apenas para salvar no objeto totals, mas NÃO para o Custo Total)
     const otherCostsTotal = otherCosts.reduce((acc, cost) => acc + (cost.cost || 0), 0);
     newTotals.otherCosts = otherCosts; // Atualiza os detalhes no objeto totals
 
@@ -805,42 +805,11 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                 )}
                 {/* Fim Custo de Produção Expandível */}
 
-                <div 
-                  className={`p-1 -m-1 rounded transition ${isExporting ? 'cursor-default' : 'cursor-pointer hover:bg-slate-50'}`}
-                  onClick={() => !isExporting && setIsLaborExpanded(!isLaborExpanded)}
-                  aria-expanded={isLaborExpanded}
-                >
-                  <div className="flex justify-between">
+                {/* Custo Mão de Obra Total (Apenas o total, sem expansão) */}
+                <div className="flex justify-between">
                     <span className="text-slate-500">Custo Mão de Obra Total:</span>
-                    <span className="font-medium flex items-center">
-                      {formatCurrency(updatedTotals.labor)}
-                      {/* Verifica se laborDetails existe antes de verificar o length */}
-                      {((updatedTotals.laborDetails || []).length > 0 && !isExporting) && (
-                        <ChevronDown className={`w-4 h-4 ml-2 text-slate-400 transition-transform duration-200 ${isLaborExpanded ? 'rotate-180' : ''}`} />
-                      )}
-                    </span>
-                  </div>
+                    <span className="font-medium">{formatCurrency(updatedTotals.labor)}</span>
                 </div>
-                {/* Conteúdo da Mão de Obra. Garante que laborDetails é um array vazio se for undefined/null */}
-                {(isLaborExpanded || isExporting) && (updatedTotals.laborDetails || []).length > 0 && (
-                    <div className={`pl-4 mt-2 space-y-2 border-l-2 border-slate-200 ${isExporting ? 'bg-white' : ''}`}>
-                      {(updatedTotals.laborDetails || []).map((detail) => (
-                          <LaborDetailItem 
-                              key={detail.id}
-                              detail={detail}
-                              isExporting={isExporting}
-                              formatCurrency={formatCurrency}
-                              onDetailChange={handleLaborDetailChange}
-                              onRemove={handleRemoveLaborDetail}
-                          />
-                      ))}
-                      {!isExporting && (
-                          <button onClick={handleAddLaborDetail} className="mt-2 text-indigo-600 hover:text-indigo-800 text-xs font-semibold flex items-center p-1 -ml-1">
-                            <Plus className="w-3 h-3 mr-1" /> Adicionar Profissional
-                          </button>
-                      )}
-                    </div>
-                )}
                 
                 {/* Campo de Edição de Impostos */}
                 <div className="flex justify-between pt-2 border-t border-slate-200 items-center">
@@ -1238,7 +1207,43 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                     })}
                 </div>
                 
-                {/* Outros Custos Section (Sanfona) */}
+                {/* NOVA SEÇÃO: Mão de Obra Total (Sanfona) */}
+                <div className="mt-8 border border-slate-200 rounded-lg overflow-hidden">
+                    <button 
+                        onClick={() => setIsLaborExpanded(prev => !prev)}
+                        className={`flex justify-between items-center w-full p-4 bg-slate-50 hover:bg-slate-100 transition duration-150 ${isExporting ? 'cursor-default' : ''}`}
+                        disabled={isExporting}
+                    >
+                        <h3 className="text-lg font-semibold text-slate-700">Mão de Obra Total ({formatCurrency(updatedTotals.labor)})</h3>
+                        {!isExporting && <ChevronDown className={`w-5 h-5 text-slate-500 transition-transform ${isLaborExpanded ? 'rotate-180' : ''}`} />}
+                    </button>
+                    
+                    {(isLaborExpanded || isExporting) && (
+                        <div className="p-4 bg-white space-y-3">
+                            <p className="text-sm text-slate-500 mb-3">Detalhe os custos com profissionais (Garçons, Cozinheiros, etc.).</p>
+                            
+                            {(estimate.totals.laborDetails || []).map((detail) => (
+                                <LaborDetailItem 
+                                    key={detail.id}
+                                    detail={detail}
+                                    isExporting={isExporting}
+                                    formatCurrency={formatCurrency}
+                                    onDetailChange={handleLaborDetailChange}
+                                    onRemove={handleRemoveLaborDetail}
+                                />
+                            ))}
+                            
+                            {!isExporting && (
+                                <button onClick={handleAddLaborDetail} className="mt-4 text-indigo-600 hover:text-indigo-800 text-sm font-semibold flex items-center p-1 -ml-1">
+                                    <Plus className="w-4 h-4 mr-1" /> Adicionar Profissional
+                                </button>
+                            )}
+                        </div>
+                    )}
+                </div>
+                {/* FIM NOVA SEÇÃO: Mão de Obra Total (Sanfona) */}
+                
+                {/* Outros Custos Section (Sanfona) - POSICIONADO ABAIXO DE MÃO DE OBRA */}
                 <div className="mt-8 border border-slate-200 rounded-lg overflow-hidden">
                     <button 
                         onClick={() => setIsOtherCostsExpanded(prev => !prev)}
