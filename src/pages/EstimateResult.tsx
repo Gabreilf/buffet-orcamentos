@@ -150,7 +150,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
 
   const getKitchenStaffCost = useCallback(() => {
       // Garante que laborDetails não é nulo
-      return (estimate.totals.laborDetails || []).filter(d => d.role.toLowerCase().includes('cozinheir') || d.role.toLowerCase().includes('auxiliar')).reduce((acc, d) => acc + d.totalCost, 0) || 0;
+      return (estimate.totals.laborDetails || []).filter(d => d.role.toLowerCase().includes('cozinheir') || d.role.toLowerCase().includes('auxiliar')).reduce((acc, d) => acc + (d.totalCost || 0), 0) || 0;
   }, [estimate.totals.laborDetails]);
 
   const recalculateTotals = useCallback((menuItems: MenuItemDetail[], otherCosts: OtherCost[], laborDetails?: LaborDetail[]) => {
@@ -941,7 +941,6 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                             <div key={p.id} className="flex flex-wrap items-center gap-2 group"> {/* Usando flex-wrap e gap para mobile */}
                                 {(isPremiseEditing || isExporting) ? (
                                     <input
-                                        key={p.id + '-item'}
                                         type="text"
                                         value={p.item}
                                         onChange={(e) => handleStructuredPremiseChange(p.id, 'item', e.target.value, false)}
@@ -957,7 +956,6 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                                 <div className="flex items-center space-x-1">
                                     {(isPremiseEditing || isExporting) ? (
                                         <input
-                                            key={p.id + '-qty'}
                                             type="number"
                                             value={p.quantity}
                                             onChange={(e) => handleStructuredPremiseChange(p.id, 'quantity', e.target.value, false)}
@@ -975,7 +973,6 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                                     
                                     {(isPremiseEditing || isExporting) ? (
                                         <select
-                                            key={p.id + '-unit'}
                                             value={p.unit}
                                             onChange={(e) => handleStructuredPremiseChange(p.id, 'unit', e.target.value, false)}
                                             onBlur={(e) => handleStructuredPremiseChange(p.id, 'unit', e.target.value, true)} // Salva no histórico
@@ -1057,7 +1054,6 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                                           {/* Removendo whitespace-nowrap da célula e garantindo que o input quebre linha */}
                                           <td className="p-2">
                                             <input 
-                                              key={itemIndex + '-name'} // Chave estável no input
                                               type="text" 
                                               value={item.name} 
                                               onChange={(e) => handleItemChange(menuItemIndex, itemIndex, 'name', e.target.value)} 
@@ -1068,7 +1064,6 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                                           </td>
                                           <td className="p-2 whitespace-nowrap">
                                             <input 
-                                              key={itemIndex + '-qty'} // Chave estável no input
                                               type="number" 
                                               value={item.qty} 
                                               onChange={(e) => handleItemChange(menuItemIndex, itemIndex, 'qty', e.target.value)} 
@@ -1079,7 +1074,6 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                                           </td>
                                           <td className="p-2 whitespace-nowrap text-sm text-slate-500">
                                             <select
-                                              key={itemIndex + '-unit'} // Chave estável no input
                                               value={item.unit}
                                               onChange={(e) => handleItemChange(menuItemIndex, itemIndex, 'unit', e.target.value)}
                                               onBlur={() => setEstimate(estimate, true)} // Mantendo onBlur para selects
@@ -1095,7 +1089,6 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                                           </td>
                                           <td className="p-2 whitespace-nowrap">
                                             <input 
-                                              key={itemIndex + '-unitCost'} // Chave estável no input
                                               type="number" 
                                               step="0.01" 
                                               value={item.unitCost} 

@@ -17,8 +17,8 @@ const LaborDetailItem: React.FC<LaborDetailItemProps> = React.memo(({ detail, is
             <input 
                 type="text"
                 value={detail.role}
-                onChange={(e) => onDetailChange(detail.id, 'role', e.target.value, false)} // Atualiza o estado sem histórico
-                onBlur={(e) => onDetailChange(detail.id, 'role', e.target.value, true)} // Salva no histórico ao perder o foco
+                onChange={(e) => onDetailChange(detail.id, 'role', e.target.value, false)} // false: Não adiciona ao histórico
+                onBlur={(e) => onDetailChange(detail.id, 'role', e.target.value, true)} // true: Adiciona ao histórico
                 placeholder="Função"
                 className={`text-slate-700 bg-transparent p-1 rounded border ${isExporting ? 'border-transparent' : 'border-slate-300 focus:border-indigo-500 focus:ring-indigo-500'} w-2/5 text-sm`}
                 readOnly={isExporting}

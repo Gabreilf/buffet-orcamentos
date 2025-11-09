@@ -16,8 +16,8 @@ const OtherCostItem: React.FC<OtherCostItemProps> = React.memo(({ cost, isExport
             <input 
                 type="text"
                 value={cost.name}
-                onChange={(e) => onCostChange(cost.id, 'name', e.target.value, false)} // Atualiza o estado sem histórico
-                onBlur={(e) => onCostChange(cost.id, 'name', e.target.value, true)} // Salva no histórico ao perder o foco
+                onChange={(e) => onCostChange(cost.id, 'name', e.target.value, false)} // false: Não adiciona ao histórico (evita re-renderização do pai)
+                onBlur={(e) => onCostChange(cost.id, 'name', e.target.value, true)} // true: Adiciona ao histórico ao perder o foco
                 placeholder="Nome do Custo"
                 className={`text-slate-500 bg-transparent p-1 rounded border ${isExporting ? 'border-transparent' : 'border-slate-300 focus:border-indigo-500 focus:ring-indigo-500'} w-3/5 text-sm`}
                 readOnly={isExporting}
@@ -29,8 +29,8 @@ const OtherCostItem: React.FC<OtherCostItemProps> = React.memo(({ cost, isExport
                     type="number"
                     step="0.01"
                     value={cost.cost}
-                    onChange={(e) => onCostChange(cost.id, 'cost', e.target.value, false)}
-                    onBlur={(e) => onCostChange(cost.id, 'cost', e.target.value, true)}
+                    onChange={(e) => onCostChange(cost.id, 'cost', e.target.value, false)} // false: Não adiciona ao histórico
+                    onBlur={(e) => onCostChange(cost.id, 'cost', e.target.value, true)} // true: Adiciona ao histórico
                     className={`font-medium bg-transparent p-1 rounded border ${isExporting ? 'border-transparent' : 'border-slate-300 focus:border-indigo-500 focus:ring-indigo-500'} w-24 text-right text-sm`}
                     readOnly={isExporting}
                 />
