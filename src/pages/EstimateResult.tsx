@@ -5,6 +5,8 @@ import { generateMenuItemDetails } from '../services/geminiService';
 import { saveNewEstimate, updateEstimate } from '../services/estimateService';
 import toast from 'react-hot-toast';
 import { useUndoRedo } from '../hooks/useUndoRedo'; 
+import OtherCostItem from '../components/OtherCostItem'; // Importando o novo componente
+import LaborDetailItem from '../components/LaborDetailItem'; // Importando o novo componente
 
 interface EstimateResultProps {
   estimate: Estimate;
@@ -202,7 +204,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
   }
   
   // Função de mudança para LaborDetails (usada no onChange para números e onBlur para todos)
-  const handleLaborDetailChange = (id: string, field: keyof LaborDetail, value: string, addToHistory: boolean = false) => {
+  const handleLaborDetailChange = useCallback((id: string, field: keyof LaborDetail, value: string, addToHistory: boolean = false) => {
       const currentLaborDetails = estimate.totals.laborDetails || [];
       if (currentLaborDetails.length === 0) return;
 
@@ -226,7 +228,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
       
       // Atualiza o estado
       setEstimate({...estimate, totals: newTotals }, addToHistory);
-  };
+  }, [estimate, recalculateTotals, setEstimate]);
 
   const handleAddLaborDetail = () => {
       const newLaborDetails = [...(estimate.totals.laborDetails || []), {
@@ -274,7 +276,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
   };
   
   // Função de mudança para OtherCost (usada no onChange para números e onBlur para todos)
-  const handleOtherCostChange = (id: string, field: keyof OtherCost, value: string, addToHistory: boolean = false) => {
+  const handleOtherCostChange = useCallback((id: string, field: keyof OtherCost, value: string, addToHistory: boolean = false) => {
       const currentOtherCosts = estimate.totals.otherCosts || [];
       const newOtherCosts = JSON.parse(JSON.stringify(currentOtherCosts));
       
@@ -292,7 +294,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
       const newTotals = recalculateTotals(estimate.menuItems, newOtherCosts);
       // Atualiza o estado
       setEstimate({...estimate, totals: newTotals }, addToHistory);
-  };
+  }, [estimate, recalculateTotals, setEstimate]);
   
   const handleAddOtherCost = () => {
       const newOtherCosts = JSON.parse(JSON.stringify(estimate.totals.otherCosts || []));
@@ -709,56 +711,14 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
             {(isLaborExpanded || isExporting) && (estimate.totals.laborDetails || []).length > 0 && (
                 <div className={`pl-4 mt-2 space-y-2 border-l-2 border-slate-200 ${isExporting ? 'bg-white' : ''}`}>
                   {(estimate.totals.laborDetails || []).map((detail) => (
-                      <div key={detail.id} className="flex items-center justify-between group py-1">
-                          {/* Role Input */}
-                          <input 
-                              key={detail.id + '-role'} // Chave estável no input
-                              type="text"
-                              value={detail.role} // Usando value
-                              onChange={(e) => handleLaborDetailChange(detail.id, 'role', e.target.value, false)} // Atualiza o estado sem histórico
-                              onBlur={(e) => handleLaborDetailChange(detail.id, 'role', e.target.value, true)} // Salva no histórico ao perder o foco
-                              placeholder="Função"
-                              className={`text-slate-700 bg-transparent p-1 rounded border ${isExporting ? 'border-transparent' : 'border-slate-300 focus:border-indigo-500 focus:ring-indigo-500'} w-2/5 text-sm`}
-                              readOnly={isExporting}
-                          />
-                          
-                          <div className="flex items-center space-x-1">
-                              {/* Count Input */}
-                              <input 
-                                  key={detail.id + '-count'} // Chave estável no input
-                                  type="number"
-                                  value={detail.count}
-                                  onChange={(e) => handleLaborDetailChange(detail.id, 'count', e.target.value, false)}
-                                  onBlur={(e) => handleLaborDetailChange(detail.id, 'count', e.target.value, true)} 
-                                  className={`w-12 bg-transparent p-1 rounded border ${isExporting ? 'border-transparent' : 'border-slate-300 focus:border-indigo-500 focus:ring-indigo-500'} text-sm text-right`}
-                                  readOnly={isExporting}
-                              />
-                              <span className="text-slate-500">x</span>
-                              
-                              {/* Cost Per Unit Input */}
-                              <span className="text-slate-500">R$</span>
-                              <input 
-                                  key={detail.id + '-cost'} // Chave estável no input
-                                  type="number"
-                                  step="0.01"
-                                  value={detail.costPerUnit}
-                                  onChange={(e) => handleLaborDetailChange(detail.id, 'costPerUnit', e.target.value, false)}
-                                  onBlur={(e) => handleLaborDetailChange(detail.id, 'costPerUnit', e.target.value, true)} 
-                                  className={`w-20 bg-transparent p-1 rounded border ${isExporting ? 'border-transparent' : 'border-slate-300 focus:border-indigo-500 focus:ring-indigo-500'} text-sm text-right`}
-                                  readOnly={isExporting}
-                              />
-                          </div>
-                          
-                          {/* Total Cost Display */}
-                          <span className="font-mono text-sm w-20 text-right">{formatCurrency(detail.totalCost)}</span>
-                          
-                          {/* Remove Button (Hidden during export) */}
-                          {!isExporting && (
-                              <button onClick={() => handleRemoveLaborDetail(detail.id)} className="ml-2 text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded">
-                                  <Trash2 className="w-3 h-3" />
-                              </button>
-                          )}
-                      </div>
+                      <LaborDetailItem 
+                          key={detail.id}
+                          detail={detail}
+                          isExporting={isExporting}
+                          formatCurrency={formatCurrency}
+                          onDetailChange={handleLaborDetailChange}
+                          onRemove={handleRemoveLaborDetail}
+                      />
                   ))}
                   {!isExporting && (
                       <button onClick={handleAddLaborDetail} className="mt-2 text-indigo-600 hover:text-indigo-800 text-xs font-semibold flex items-center p-1 -ml-1">
@@ -772,38 +732,13 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
               <h4 className="text-xs font-semibold text-slate-600 mb-2">Outros Custos</h4>
               {/* Garante que otherCosts é um array vazio se for undefined/null */}
               {(estimate.totals.otherCosts || []).map((cost) => (
-                  <div key={cost.id} className="flex justify-between items-center group py-1">
-                      {/* Name Input */}
-                      <input 
-                          key={cost.id + '-name'} // Chave estável no input
-                          type="text"
-                          value={cost.name} // Usando value
-                          onChange={(e) => handleOtherCostChange(cost.id, 'name', e.target.value, false)} // Atualiza o estado sem histórico
-                          onBlur={(e) => handleOtherCostChange(cost.id, 'name', e.target.value, true)} // Salva no histórico ao perder o foco
-                          placeholder="Nome do Custo"
-                          className={`text-slate-500 bg-transparent p-1 rounded border ${isExporting ? 'border-transparent' : 'border-slate-300 focus:border-indigo-500 focus:ring-indigo-500'} w-3/5 text-sm`}
-                          readOnly={isExporting}
-                      />
-                      <div className="flex items-center">
-                          <span className="text-slate-500 mr-1">R$</span>
-                          {/* Cost Input */}
-                          <input 
-                              key={cost.id + '-cost'} // Chave estável no input
-                              type="number"
-                              step="0.01"
-                              value={cost.cost}
-                              onChange={(e) => handleOtherCostChange(cost.id, 'cost', e.target.value, false)}
-                              onBlur={(e) => handleOtherCostChange(cost.id, 'cost', e.target.value, true)}
-                              className={`font-medium bg-transparent p-1 rounded border ${isExporting ? 'border-transparent' : 'border-slate-300 focus:border-indigo-500 focus:ring-indigo-500'} w-24 text-right text-sm`}
-                              readOnly={isExporting}
-                          />
-                          {!isExporting && (
-                              <button onClick={() => handleRemoveOtherCost(cost.id)} className="ml-2 text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded">
-                                  <Trash2 className="w-3 h-3" />
-                              </button>
-                          )}
-                      </div>
-                  </div>
+                  <OtherCostItem
+                      key={cost.id}
+                      cost={cost}
+                      isExporting={isExporting}
+                      onCostChange={handleOtherCostChange}
+                      onRemove={handleRemoveOtherCost}
+                  />
               ))}
               {!isExporting && (
                   <button onClick={handleAddOtherCost} className="mt-2 text-indigo-600 hover:text-indigo-800 text-xs font-semibold flex items-center p-1 -ml-1">
