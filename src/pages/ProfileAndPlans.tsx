@@ -204,6 +204,18 @@ const ProfileAndPlans: React.FC = () => {
                     
                     {/* Card de Status do Plano */}
                     <div className="bg-white p-6 rounded-xl shadow-lg border border-slate-200">
+                        
+                        {/* Botão de Suporte WhatsApp (Movido para o topo) */}
+                        <a
+                            href="https://wa.me/5521973741689"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="mb-4 w-full bg-green-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-600 transition duration-300 ease-in-out shadow-lg flex items-center justify-center"
+                            title="Suporte via WhatsApp"
+                        >
+                            <i className="fab fa-whatsapp mr-2"></i> Falar com Suporte
+                        </a>
+                        
                         <h3 className="text-xl font-bold text-slate-800 border-b pb-3 mb-4">Status do Plano</h3>
                         
                         <div className="flex items-center justify-between mb-4">
@@ -236,16 +248,6 @@ const ProfileAndPlans: React.FC = () => {
                             </div>
                         )}
                         
-                        {/* Botão de Suporte WhatsApp */}
-                        <a
-                            href="https://wa.me/5521973741689"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="mt-4 w-full bg-green-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-600 transition duration-300 ease-in-out shadow-lg flex items-center justify-center"
-                            title="Suporte via WhatsApp"
-                        >
-                            <i className="fab fa-whatsapp mr-2"></i> Falar com Suporte
-                        </a>
                     </div>
                     
                     {/* Card de Edição de Perfil (Minimizado/Expandido) */}
