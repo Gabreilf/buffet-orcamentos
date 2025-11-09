@@ -190,6 +190,20 @@ const ProfileAndPlans: React.FC = () => {
         },
     ];
 
+    // Componente do Card de Sair da Conta
+    const LogoutCard = () => (
+        <div className="bg-white p-6 rounded-xl shadow-lg border border-slate-200">
+            <h3 className="text-xl font-bold text-slate-800 border-b pb-3 mb-4">Sair da Conta</h3>
+            <p className="text-sm text-slate-500 mb-4">Clique abaixo para encerrar sua sessão com segurança.</p>
+            <button
+                onClick={handleLogout}
+                className="w-full bg-red-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-red-700 transition duration-300 ease-in-out shadow-lg flex items-center justify-center"
+            >
+                <LogOut className="w-5 h-5 mr-2" /> Sair
+            </button>
+        </div>
+    );
+
     if (isLoading) {
         return (
             <div className="flex justify-center items-center h-96">
@@ -354,22 +368,10 @@ const ProfileAndPlans: React.FC = () => {
                             </form>
                         )}
                     </div>
-                    
-                    {/* NOVO CARD: Botão de Sair */}
-                    <div className="bg-white p-6 rounded-xl shadow-lg border border-slate-200">
-                        <h3 className="text-xl font-bold text-slate-800 border-b pb-3 mb-4">Sair da Conta</h3>
-                        <p className="text-sm text-slate-500 mb-4">Clique abaixo para encerrar sua sessão com segurança.</p>
-                        <button
-                            onClick={handleLogout}
-                            className="w-full bg-red-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-red-700 transition duration-300 ease-in-out shadow-lg flex items-center justify-center"
-                        >
-                            <LogOut className="w-5 h-5 mr-2" /> Sair
-                        </button>
-                    </div>
                 </div>
 
                 {/* Coluna 2 & 3: Planos de Assinatura */}
-                <div className="lg:col-span-2">
+                <div className="lg:col-span-2 space-y-8"> {/* Adicionando space-y-8 para espaçamento entre os cards */}
                     <h3 className="text-xl font-bold text-slate-800 mb-4">Opções de Upgrade</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         {plans.map((plan, index) => (
@@ -419,6 +421,9 @@ const ProfileAndPlans: React.FC = () => {
                             </div>
                         ))}
                     </div>
+                    
+                    {/* Card de Sair da Conta (Movido para a coluna principal) */}
+                    <LogoutCard />
                 </div>
             </div>
         </div>
