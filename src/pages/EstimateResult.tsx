@@ -817,7 +817,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                     <div className="flex items-center">
                         <input
                             type="number"
-                            step="1" {/* ALTERADO DE "0.1" PARA "1" */}
+                            step="1" 
                             min="0"
                             value={taxRate}
                             onChange={(e) => handleTaxRateChange(e.target.value)}
