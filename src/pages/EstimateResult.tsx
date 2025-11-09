@@ -695,7 +695,8 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                                   type="number"
                                   value={detail.count}
                                   onChange={(e) => handleLaborDetailChange(index, 'count', e.target.value)}
-                                  onBlur={() => setEstimate(estimate, true)} // Adiciona ao histórico ao perder o foco
+                              // CORREÇÃO: Adiciona onBlur para salvar no histórico
+                              onBlur={() => setEstimate(estimate, true)} 
                                   className={`w-12 bg-transparent p-1 rounded border ${isExporting ? 'border-transparent' : 'border-slate-300 focus:border-indigo-500 focus:ring-indigo-500'} text-sm text-right`}
                                   readOnly={isExporting}
                               />
@@ -708,7 +709,8 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                                   step="0.01"
                                   value={detail.costPerUnit}
                                   onChange={(e) => handleLaborDetailChange(index, 'costPerUnit', e.target.value)}
-                                  onBlur={() => setEstimate(estimate, true)} // Adiciona ao histórico ao perder o foco
+                              // CORREÇÃO: Adiciona onBlur para salvar no histórico
+                              onBlur={() => setEstimate(estimate, true)} 
                                   className={`w-20 bg-transparent p-1 rounded border ${isExporting ? 'border-transparent' : 'border-slate-300 focus:border-indigo-500 focus:ring-indigo-500'} text-sm text-right`}
                                   readOnly={isExporting}
                               />
