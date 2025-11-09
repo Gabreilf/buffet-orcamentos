@@ -40,11 +40,8 @@ const Header: React.FC<HeaderProps> = ({ onLogoClick, session, onProfileClick, c
             onClick={onLogoClick}
           >
             <Logo className="h-8 w-8 text-indigo-600" />
-            <h1 className="ml-3 text-2xl font-bold text-slate-800 tracking-tight hidden sm:block">
+            <h1 className="ml-3 text-2xl font-bold text-slate-800 tracking-tight">
               Orça<span className="text-indigo-600">Buffet</span>
-            </h1>
-            <h1 className="ml-3 text-2xl font-bold text-slate-800 tracking-tight sm:hidden">
-              Orça<span className="text-indigo-600">B</span>
             </h1>
           </div>
           
