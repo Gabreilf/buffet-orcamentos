@@ -170,7 +170,9 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
     const newTotals: Partial<Estimate['totals']> = {};
 
     newTotals.ingredients = menuItems.reduce((acc, menuItem) => {
-        return acc + menuItem.ingredients.reduce((subAcc, item) => subAcc + (item.totalCost || 0), 0);
+        // FIX: Adicionando verificação de segurança para menuItem.ingredients
+        const ingredients = menuItem.ingredients || [];
+        return acc + ingredients.reduce((subAcc, item) => subAcc + (item.totalCost || 0), 0);
     }, 0);
     
     // REMOVIDO: otherCostsTotal = otherCosts.reduce((acc, cost) => acc + (cost.cost || 0), 0);
@@ -376,7 +378,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
           // 3. Recalcula as quantidades dos ingredientes
           const updatedMenuItems = prevEst.menuItems.map(menuItem => ({
               ...menuItem,
-              ingredients: menuItem.ingredients.map(ingredient => {
+              ingredients: (menuItem.ingredients || []).map(ingredient => { // Proteção extra aqui também
                   const premise = newAverages.find(p => 
                       ingredient.name.toLowerCase().includes(p.item.toLowerCase()) && p.quantity > 0
                   );
@@ -580,7 +582,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
 
       // 1. Itens do Menu (Ingredientes)
       estimate.menuItems.forEach(menuItem => {
-          menuItem.ingredients.forEach(item => {
+          (menuItem.ingredients || []).forEach(item => { // Proteção aqui também
               rows.push([
                   item.name,
                   formatNumber(item.qty),
@@ -770,23 +772,6 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                 )}
                 
                 {/* REMOVIDO: Seção Outros Custos */}
-                {/* <div className="pt-2 border-t border-slate-100">
-                  <h4 className="text-xs font-semibold text-slate-600 mb-2">Outros Custos</h4>
-                  {(updatedTotals.otherCosts || []).map((cost) => (
-                      <OtherCostItem
-                          key={cost.id}
-                          cost={cost}
-                          isExporting={isExporting}
-                          onCostChange={handleOtherCostChange}
-                          onRemove={handleRemoveOtherCost}
-                      />
-                  ))}
-                  {!isExporting && (
-                      <button onClick={handleAddOtherCost} className="mt-2 text-indigo-600 hover:text-indigo-800 text-xs font-semibold flex items-center p-1 -ml-1">
-                        <Plus className="w-3 h-3 mr-1" /> Adicionar Custo
-                      </button>
-                  )}
-                </div> */}
 
                 {/* Campo de Edição de Impostos */}
                 <div className="flex justify-between pt-2 border-t border-slate-200 items-center">
