@@ -763,7 +763,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
         return null;
     }
     
-    const otherCostsTotal = (updatedTotals.otherCosts || []).reduce((acc, cost) => acc + (cost.cost || 0), 0);
+    // const otherCostsTotal = (updatedTotals.otherCosts || []).reduce((acc, cost) => acc + (cost.cost || 0), 0); // Não é mais usado para exibição
 
     return (
         <div className="bg-white p-6 rounded-xl shadow-lg border border-slate-200">
@@ -840,11 +840,12 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                     </div>
                 )}
                 
-                {/* Custo Outros Custos (Apenas o total) */}
+                {/* REMOVIDO: Custo Outros Custos (Apenas o total) 
                 <div className="flex justify-between">
                     <span className="text-slate-500">Outros Custos:</span>
                     <span className="font-medium">{formatCurrency(otherCostsTotal)}</span>
                 </div>
+                */}
 
                 {/* Campo de Edição de Impostos */}
                 <div className="flex justify-between pt-2 border-t border-slate-200 items-center">
