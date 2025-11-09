@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { Estimate, EstimateItem, MenuItemDetail, OtherCost, LaborDetail } from '../types';
+import { Estimate, EstimateItem, MenuItemDetail, OtherCost, LaborDetail, EstimateTotals } from '../types';
 import { ChevronDown, Trash2, Plus, FileText, Loader2, Pencil, RotateCcw, RotateCw, Download } from 'lucide-react';
 import { generateMenuItemDetails } from '../services/geminiService';
 import { saveNewEstimate, updateEstimate } from '../services/estimateService';
@@ -181,7 +181,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
     newTotals.otherCosts = otherCosts;
     
     // O preço sugerido será calculado no useMemo principal
-    return newTotals as Estimate['totals'];
+    return newTotals as EstimateTotals; // Garantindo que o retorno seja EstimateTotals completo
   }, []);
 
 
@@ -618,7 +618,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
       });
 
       // 2. Mão de Obra
-      (estimate.totals.laborDetails || []).forEach(detail => {
+      (updatedTotals.laborDetails || []).forEach(detail => {
           rows.push([
               detail.role,
               detail.count.toString(),
@@ -631,7 +631,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
       });
 
       // 3. Outros Custos
-      (estimate.totals.otherCosts || []).forEach(cost => {
+      (updatedTotals.otherCosts || []).forEach(cost => {
           rows.push([
               cost.name,
               '1', // Quantidade fixa 1 para custos fixos
@@ -648,8 +648,8 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
           "CUSTO TOTAL (Incluindo Impostos)",
           '1',
           'Total',
-          formatNumber(estimate.totals.totalCost),
-          formatNumber(estimate.totals.totalCost),
+          formatNumber(updatedTotals.totalCost),
+          formatNumber(updatedTotals.totalCost),
           'Resumo',
           DATE_CREATED
       ]);
@@ -694,168 +694,175 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
   const kitchenStaffCost = getKitchenStaffCost(updatedTotals.laborDetails);
 
   // Componente auxiliar para renderizar o Resumo Financeiro (usado tanto na tela quanto no PDF)
-  const FinancialSummary = () => (
-    <div className="bg-white p-6 rounded-xl shadow-lg border border-slate-200">
-        <h3 className="text-xl font-bold text-slate-800 border-b pb-3 mb-4">Resumo Financeiro</h3>
-        
-        <div className="space-y-3 text-sm">
-            <div className="flex justify-between"><span className="text-slate-500">Custo Ingredientes:</span> <span className="font-medium">{formatCurrency(updatedTotals.ingredients)}</span></div>
+  const FinancialSummary = () => {
+    // Verificação de segurança extra
+    if (!updatedTotals) {
+        return null;
+    }
+    
+    return (
+        <div className="bg-white p-6 rounded-xl shadow-lg border border-slate-200">
+            <h3 className="text-xl font-bold text-slate-800 border-b pb-3 mb-4">Resumo Financeiro</h3>
             
-            {/* Custo de Produção Expandível */}
-            {updatedTotals.productionCost !== undefined && (
-                <div 
-                    className={`p-1 -m-1 rounded transition ${isExporting ? 'cursor-default' : 'cursor-pointer hover:bg-slate-50'}`}
-                    onClick={() => !isExporting && setIsProductionExpanded(!isProductionExpanded)}
-                    aria-expanded={isProductionExpanded}
-                >
-                    <div className="flex justify-between">
-                        <span className="text-slate-800 font-semibold">Custo Produção:</span>
-                        <span className="font-bold flex items-center text-slate-800">
-                            {formatCurrency(updatedTotals.productionCost)}
-                            {!isExporting && <ChevronDown className={`w-4 h-4 ml-2 text-slate-400 transition-transform duration-200 ${isProductionExpanded ? 'rotate-180' : ''}`} />}
-                        </span>
+            <div className="space-y-3 text-sm">
+                <div className="flex justify-between"><span className="text-slate-500">Custo Ingredientes:</span> <span className="font-medium">{formatCurrency(updatedTotals.ingredients)}</span></div>
+                
+                {/* Custo de Produção Expandível */}
+                {updatedTotals.productionCost !== undefined && (
+                    <div 
+                        className={`p-1 -m-1 rounded transition ${isExporting ? 'cursor-default' : 'cursor-pointer hover:bg-slate-50'}`}
+                        onClick={() => !isExporting && setIsProductionExpanded(!isProductionExpanded)}
+                        aria-expanded={isProductionExpanded}
+                    >
+                        <div className="flex justify-between">
+                            <span className="text-slate-800 font-semibold">Custo Produção:</span>
+                            <span className="font-bold flex items-center text-slate-800">
+                                {formatCurrency(updatedTotals.productionCost)}
+                                {!isExporting && <ChevronDown className={`w-4 h-4 ml-2 text-slate-400 transition-transform duration-200 ${isProductionExpanded ? 'rotate-180' : ''}`} />}
+                            </span>
+                        </div>
                     </div>
-                </div>
-            )}
-            {/* Conteúdo do Custo de Produção. Renderizado condicionalmente, mas forçado a aparecer no PDF */}
-            {(isProductionExpanded || isExporting) && updatedTotals.productionCost !== undefined && (
-                <div className="pl-4 mt-2 space-y-1 border-l-2 border-slate-200 bg-slate-50 p-2 rounded">
-                    <div className="flex justify-between text-xs">
-                        <span className="text-slate-500">Ingredientes:</span>
-                        <span className="font-mono">{formatCurrency(updatedTotals.ingredients)}</span>
+                )}
+                {/* Conteúdo do Custo de Produção. Renderizado condicionalmente, mas forçado a aparecer no PDF */}
+                {(isProductionExpanded || isExporting) && updatedTotals.productionCost !== undefined && (
+                    <div className="pl-4 mt-2 space-y-1 border-l-2 border-slate-200 bg-slate-50 p-2 rounded">
+                        <div className="flex justify-between text-xs">
+                            <span className="text-slate-500">Ingredientes:</span>
+                            <span className="font-mono">{formatCurrency(updatedTotals.ingredients)}</span>
+                        </div>
+                        <div className="flex justify-between text-xs">
+                            <span className="text-slate-500">Equipe de Cozinha:</span>
+                            <span className="font-mono">{formatCurrency(kitchenStaffCost)}</span>
+                        </div>
                     </div>
-                    <div className="flex justify-between text-xs">
-                        <span className="text-slate-500">Equipe de Cozinha:</span>
-                        <span className="font-mono">{formatCurrency(kitchenStaffCost)}</span>
-                    </div>
-                </div>
-            )}
-            {/* Fim Custo de Produção Expandível */}
+                )}
+                {/* Fim Custo de Produção Expandível */}
 
-            <div 
-              className={`p-1 -m-1 rounded transition ${isExporting ? 'cursor-default' : 'cursor-pointer hover:bg-slate-50'}`}
-              onClick={() => !isExporting && setIsLaborExpanded(!isLaborExpanded)}
-              aria-expanded={isLaborExpanded}
-            >
-              <div className="flex justify-between">
-                <span className="text-slate-500">Custo Mão de Obra Total:</span>
-                <span className="font-medium flex items-center">
-                  {formatCurrency(updatedTotals.labor)}
-                  {/* Verifica se laborDetails existe antes de verificar o length */}
-                  {((updatedTotals.laborDetails || []).length > 0 && !isExporting) && (
-                    <ChevronDown className={`w-4 h-4 ml-2 text-slate-400 transition-transform duration-200 ${isLaborExpanded ? 'rotate-180' : ''}`} />
-                  )}
-                </span>
-              </div>
-            </div>
-            {/* Conteúdo da Mão de Obra. Garante que laborDetails é um array vazio se for undefined/null */}
-            {(isLaborExpanded || isExporting) && (updatedTotals.laborDetails || []).length > 0 && (
-                <div className={`pl-4 mt-2 space-y-2 border-l-2 border-slate-200 ${isExporting ? 'bg-white' : ''}`}>
-                  {(updatedTotals.laborDetails || []).map((detail) => (
-                      <LaborDetailItem 
-                          key={detail.id}
-                          detail={detail}
+                <div 
+                  className={`p-1 -m-1 rounded transition ${isExporting ? 'cursor-default' : 'cursor-pointer hover:bg-slate-50'}`}
+                  onClick={() => !isExporting && setIsLaborExpanded(!isLaborExpanded)}
+                  aria-expanded={isLaborExpanded}
+                >
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Custo Mão de Obra Total:</span>
+                    <span className="font-medium flex items-center">
+                      {formatCurrency(updatedTotals.labor)}
+                      {/* Verifica se laborDetails existe antes de verificar o length */}
+                      {((updatedTotals.laborDetails || []).length > 0 && !isExporting) && (
+                        <ChevronDown className={`w-4 h-4 ml-2 text-slate-400 transition-transform duration-200 ${isLaborExpanded ? 'rotate-180' : ''}`} />
+                      )}
+                    </span>
+                  </div>
+                </div>
+                {/* Conteúdo da Mão de Obra. Garante que laborDetails é um array vazio se for undefined/null */}
+                {(isLaborExpanded || isExporting) && (updatedTotals.laborDetails || []).length > 0 && (
+                    <div className={`pl-4 mt-2 space-y-2 border-l-2 border-slate-200 ${isExporting ? 'bg-white' : ''}`}>
+                      {(updatedTotals.laborDetails || []).map((detail) => (
+                          <LaborDetailItem 
+                              key={detail.id}
+                              detail={detail}
+                              isExporting={isExporting}
+                              formatCurrency={formatCurrency}
+                              onDetailChange={handleLaborDetailChange}
+                              onRemove={handleRemoveLaborDetail}
+                          />
+                      ))}
+                      {!isExporting && (
+                          <button onClick={handleAddLaborDetail} className="mt-2 text-indigo-600 hover:text-indigo-800 text-xs font-semibold flex items-center p-1 -ml-1">
+                            <Plus className="w-3 h-3 mr-1" /> Adicionar Profissional
+                          </button>
+                      )}
+                    </div>
+                )}
+                
+                <div className="pt-2 border-t border-slate-100">
+                  <h4 className="text-xs font-semibold text-slate-600 mb-2">Outros Custos</h4>
+                  {/* Corrigido: updatedTotals.otherCosts é garantido como objeto pelo useMemo, mas o fallback é bom */}
+                  {(updatedTotals.otherCosts || []).map((cost) => (
+                      <OtherCostItem
+                          key={cost.id}
+                          cost={cost}
                           isExporting={isExporting}
-                          formatCurrency={formatCurrency}
-                          onDetailChange={handleLaborDetailChange}
-                          onRemove={handleRemoveLaborDetail}
+                          onCostChange={handleOtherCostChange}
+                          onRemove={handleRemoveOtherCost}
                       />
                   ))}
                   {!isExporting && (
-                      <button onClick={handleAddLaborDetail} className="mt-2 text-indigo-600 hover:text-indigo-800 text-xs font-semibold flex items-center p-1 -ml-1">
-                        <Plus className="w-3 h-3 mr-1" /> Adicionar Profissional
+                      <button onClick={handleAddOtherCost} className="mt-2 text-indigo-600 hover:text-indigo-800 text-xs font-semibold flex items-center p-1 -ml-1">
+                        <Plus className="w-3 h-3 mr-1" /> Adicionar Custo
                       </button>
                   )}
                 </div>
-            )}
-            
-            <div className="pt-2 border-t border-slate-100">
-              <h4 className="text-xs font-semibold text-slate-600 mb-2">Outros Custos</h4>
-              {/* Garante que otherCosts é um array vazio se for undefined/null */}
-              {(updatedTotals.otherCosts || []).map((cost) => (
-                  <OtherCostItem
-                      key={cost.id}
-                      cost={cost}
-                      isExporting={isExporting}
-                      onCostChange={handleOtherCostChange}
-                      onRemove={handleRemoveOtherCost}
-                  />
-              ))}
-              {!isExporting && (
-                  <button onClick={handleAddOtherCost} className="mt-2 text-indigo-600 hover:text-indigo-800 text-xs font-semibold flex items-center p-1 -ml-1">
-                    <Plus className="w-3 h-3 mr-1" /> Adicionar Custo
-                  </button>
-              )}
-            </div>
 
-            {/* Campo de Edição de Impostos */}
-            <div className="flex justify-between pt-2 border-t border-slate-200 items-center">
-                <span className="text-slate-500">Impostos:</span>
-                <div className="flex items-center">
-                    <input
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        value={taxRate}
-                        onChange={(e) => handleTaxRateChange(e.target.value)}
-                        onBlur={handleTaxRateBlur}
-                        className={`w-12 bg-transparent p-1 rounded border text-sm text-right ${isExporting ? 'border-transparent' : 'border-slate-300 focus:border-indigo-500 focus:ring-indigo-500'}`}
-                        readOnly={isExporting}
-                    />
-                    <span className="text-slate-500 ml-1">%</span>
-                    <span className="font-medium ml-3">{formatCurrency(updatedTotals.tax)}</span>
+                {/* Campo de Edição de Impostos */}
+                <div className="flex justify-between pt-2 border-t border-slate-200 items-center">
+                    <span className="text-slate-500">Impostos:</span>
+                    <div className="flex items-center">
+                        <input
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            value={taxRate}
+                            onChange={(e) => handleTaxRateChange(e.target.value)}
+                            onBlur={handleTaxRateBlur}
+                            className={`w-12 bg-transparent p-1 rounded border text-sm text-right ${isExporting ? 'border-transparent' : 'border-slate-300 focus:border-indigo-500 focus:ring-indigo-500'}`}
+                            readOnly={isExporting}
+                        />
+                        <span className="text-slate-500 ml-1">%</span>
+                        <span className="font-medium ml-3">{formatCurrency(updatedTotals.tax)}</span>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <div className="my-4 border-t border-dashed"></div>
-        
-        <div className="flex justify-between text-lg font-bold p-3 bg-slate-100 rounded-lg">
-            <span className="text-slate-800">CUSTO TOTAL:</span>
-            <span className="text-red-600">{formatCurrency(updatedTotals.totalCost)}</span>
-        </div>
-        
-        {!isExporting && (
-            <div className="mt-6">
-                <label htmlFor="margin-slider" className="block text-sm font-medium text-slate-700 mb-2">
-                    Simular Preço de Venda (Margem de Lucro: <span className="font-bold text-indigo-600">{margin}%</span>)
-                </label>
-                <input 
-                    id="margin-slider"
-                    type="range"
-                    min="10"
-                    max="200"
-                    step="5"
-                    value={margin}
-                    onChange={(e) => setMargin(Number(e.target.value))}
-                    className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer range-lg"
-                />
+            <div className="my-4 border-t border-dashed"></div>
+            
+            <div className="flex justify-between text-lg font-bold p-3 bg-slate-100 rounded-lg">
+                <span className="text-slate-800">CUSTO TOTAL:</span>
+                <span className="text-red-600">{formatCurrency(updatedTotals.totalCost)}</span>
             </div>
-        )}
+            
+            {!isExporting && (
+                <div className="mt-6">
+                    <label htmlFor="margin-slider" className="block text-sm font-medium text-slate-700 mb-2">
+                        Simular Preço de Venda (Margem de Lucro: <span className="font-bold text-indigo-600">{margin}%</span>)
+                    </label>
+                    <input 
+                        id="margin-slider"
+                        type="range"
+                        min="10"
+                        max="200"
+                        step="5"
+                        value={margin}
+                        onChange={(e) => setMargin(Number(e.target.value))}
+                        className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer range-lg"
+                    />
+                </div>
+            )}
 
-        <div className="mt-4 flex justify-between text-2xl font-bold p-3 bg-green-100 text-green-800 rounded-lg">
-            <span>Preço Sugerido:</span>
-            <span>{formatCurrency(updatedTotals.suggestedPrice)}</span>
+            <div className="mt-4 flex justify-between text-2xl font-bold p-3 bg-green-100 text-green-800 rounded-lg">
+                <span>Preço Sugerido:</span>
+                <span>{formatCurrency(updatedTotals.suggestedPrice)}</span>
+            </div>
+             <div className="mt-1 text-right text-sm text-slate-500">
+                 Lucro Bruto: {formatCurrency(updatedTotals.suggestedPrice - updatedTotals.totalCost)}
+             </div>
+             
+             {!isExporting && (
+                 <button 
+                    onClick={handleSaveEstimate}
+                    disabled={isSaving}
+                    className="mt-6 w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 transition duration-300 ease-in-out shadow-lg disabled:bg-indigo-400 flex items-center justify-center"
+                 >
+                    {isSaving ? (
+                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    ) : (
+                        'Salvar Orçamento'
+                    )}
+                 </button>
+             )}
         </div>
-         <div className="mt-1 text-right text-sm text-slate-500">
-             Lucro Bruto: {formatCurrency(updatedTotals.suggestedPrice - updatedTotals.totalCost)}
-         </div>
-         
-         {!isExporting && (
-             <button 
-                onClick={handleSaveEstimate}
-                disabled={isSaving}
-                className="mt-6 w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 transition duration-300 ease-in-out shadow-lg disabled:bg-indigo-400 flex items-center justify-center"
-             >
-                {isSaving ? (
-                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                ) : (
-                    'Salvar Orçamento'
-                )}
-             </button>
-         )}
-    </div>
-  );
+    );
+  };
 
 
   return (
