@@ -15,7 +15,6 @@ const LaborDetailItem: React.FC<LaborDetailItemProps> = React.memo(({ detail, is
         <div className="flex items-center justify-between group py-1">
             {/* Role Input */}
             <input 
-                key={detail.id + '-role'}
                 type="text"
                 value={detail.role}
                 onChange={(e) => onDetailChange(detail.id, 'role', e.target.value, false)} // Atualiza o estado sem histórico
@@ -28,7 +27,6 @@ const LaborDetailItem: React.FC<LaborDetailItemProps> = React.memo(({ detail, is
             <div className="flex items-center space-x-1">
                 {/* Count Input */}
                 <input 
-                    key={detail.id + '-count'}
                     type="number"
                     value={detail.count}
                     onChange={(e) => onDetailChange(detail.id, 'count', e.target.value, false)}
@@ -41,7 +39,6 @@ const LaborDetailItem: React.FC<LaborDetailItemProps> = React.memo(({ detail, is
                 {/* Cost Per Unit Input */}
                 <span className="text-slate-500">R$</span>
                 <input 
-                    key={detail.id + '-cost'}
                     type="number"
                     step="0.01"
                     value={detail.costPerUnit}

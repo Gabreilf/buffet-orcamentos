@@ -14,7 +14,6 @@ const OtherCostItem: React.FC<OtherCostItemProps> = React.memo(({ cost, isExport
         <div className="flex justify-between items-center group py-1">
             {/* Name Input */}
             <input 
-                key={cost.id + '-name'}
                 type="text"
                 value={cost.name}
                 onChange={(e) => onCostChange(cost.id, 'name', e.target.value, false)} // Atualiza o estado sem histórico
@@ -27,7 +26,6 @@ const OtherCostItem: React.FC<OtherCostItemProps> = React.memo(({ cost, isExport
                 <span className="text-slate-500 mr-1">R$</span>
                 {/* Cost Input */}
                 <input 
-                    key={cost.id + '-cost'}
                     type="number"
                     step="0.01"
                     value={cost.cost}
