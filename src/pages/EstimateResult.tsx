@@ -192,7 +192,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
         return acc + ingredients.reduce((subAcc, item) => subAcc + (item.totalCost || 0), 0);
     }, 0);
     
-    // Inclui OtherCosts no cálculo
+    // Inclui OtherCosts no cálculo (apenas para salvar no objeto totals, mas não para o Custo Total)
     const otherCostsTotal = otherCosts.reduce((acc, cost) => acc + (cost.cost || 0), 0);
     newTotals.otherCosts = otherCosts; // Atualiza os detalhes no objeto totals
 
@@ -204,9 +204,11 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
     const kitchenStaffCost = (laborDetails || []).filter(d => d.role.toLowerCase().includes('cozinheir') || d.role.toLowerCase().includes('auxiliar')).reduce((acc, d) => acc + (d.totalCost || 0), 0) || 0;
     newTotals.productionCost = (newTotals.ingredients || 0) + kitchenStaffCost;
     
-    // Tax calculation based on ingredients + labor + other costs
-    const baseForTax = (newTotals.ingredients || 0) + (newTotals.labor || 0) + otherCostsTotal;
+    // Tax calculation based on ingredients + labor (EXCLUINDO otherCostsTotal)
+    const baseForTax = (newTotals.ingredients || 0) + (newTotals.labor || 0);
     newTotals.tax = baseForTax * (currentTaxRate / 100);
+    
+    // Custo Total = Ingredientes + Mão de Obra + Impostos (EXCLUINDO otherCostsTotal)
     newTotals.totalCost = baseForTax + (newTotals.tax || 0);
     
     return newTotals as EstimateTotals; // Garantindo que o retorno seja EstimateTotals completo
@@ -344,7 +346,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
               (cost as any)[field] = numericValue;
           }
 
-          // Recalcula os totais
+          // Recalcula os totais (o cálculo agora ignora o valor de otherCostsTotal para o Custo Total, mas o armazena no objeto totals)
           const newTotals = recalculateTotals(prevEst.menuItems, newOtherCosts, prevEst.totals.laborDetails || [], taxRate);
           
           // Atualiza o estado
@@ -678,8 +680,8 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
           ]);
       });
 
-      // 3. Outros Custos
-      (updatedTotals.otherCosts || []).forEach(cost => {
+      // 3. Outros Custos (Ainda incluídos no CSV para detalhamento completo)
+      (estimate.totals.otherCosts || []).forEach(cost => {
           rows.push([
               cost.name,
               '1', // Quantidade fixa 1 para custos fixos
@@ -693,7 +695,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
       
       // 4. Resumo (Custo Total e Preço Sugerido)
       rows.push([
-          "CUSTO TOTAL (Incluindo Impostos)",
+          "CUSTO TOTAL (Ingredientes + Mão de Obra + Impostos)",
           '1',
           'Total',
           formatNumber(updatedTotals.totalCost),
@@ -763,7 +765,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
         return null;
     }
     
-    // const otherCostsTotal = (updatedTotals.otherCosts || []).reduce((acc, cost) => acc + (cost.cost || 0), 0); // Não é mais usado para exibição
+    // otherCostsTotal não é mais usado para exibição no resumo
 
     return (
         <div className="bg-white p-6 rounded-xl shadow-lg border border-slate-200">
@@ -840,13 +842,6 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                     </div>
                 )}
                 
-                {/* REMOVIDO: Custo Outros Custos (Apenas o total) 
-                <div className="flex justify-between">
-                    <span className="text-slate-500">Outros Custos:</span>
-                    <span className="font-medium">{formatCurrency(otherCostsTotal)}</span>
-                </div>
-                */}
-
                 {/* Campo de Edição de Impostos */}
                 <div className="flex justify-between pt-2 border-t border-slate-200 items-center">
                     <span className="text-slate-500">Impostos:</span>
