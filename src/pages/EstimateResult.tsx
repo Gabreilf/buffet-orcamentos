@@ -6,7 +6,7 @@ import { saveNewEstimate, updateEstimate } from '../services/estimateService';
 import toast from 'react-hot-toast';
 import { useUndoRedo } from '../hooks/useUndoRedo'; 
 import OtherCostItem from '../components/OtherCostItem'; // Importando o novo componente
-import LaborDetailItem from '../2components/LaborDetailItem'; // Importando o novo componente
+import LaborDetailItem from '../components/LaborDetailItem'; // Corrigido: Caminho correto
 
 interface EstimateResultProps {
   estimate: Estimate;
