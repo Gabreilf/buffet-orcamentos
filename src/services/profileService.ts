@@ -63,3 +63,37 @@ export async function updateProfile(profileData: Partial<Profile>): Promise<Prof
 
     return data as Profile;
 }
+
+/**
+ * Uploads an avatar file to Supabase storage and returns the public URL.
+ * Assumes a bucket named 'avatars' exists.
+ */
+export async function uploadAvatar(file: File, userId: string): Promise<string> {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${userId}.${fileExt}`;
+    const filePath = `${userId}/${fileName}`; // Ex: 'user_uuid/user_uuid.jpg'
+
+    // 1. Upload the file
+    const { error: uploadError } = await supabase.storage
+        .from('avatars') // Assumindo que o bucket 'avatars' existe
+        .upload(filePath, file, {
+            cacheControl: '3600',
+            upsert: true, // Sobrescreve se já existir
+        });
+
+    if (uploadError) {
+        console.error("Supabase upload error:", uploadError);
+        throw new Error('Falha ao fazer upload da imagem: ' + uploadError.message);
+    }
+
+    // 2. Get the public URL
+    const { data } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+        
+    if (!data || !data.publicUrl) {
+        throw new Error('Falha ao obter a URL pública da imagem.');
+    }
+
+    return data.publicUrl;
+}

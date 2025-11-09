@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Check, Infinity, Zap, User, Loader2, Save } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Check, Infinity, Zap, User, Loader2, Save, ChevronDown, Upload } from 'lucide-react';
 import { supabase } from '../integrations/supabase/client';
-import { fetchProfile, updateProfile } from '../services/profileService';
+import { fetchProfile, updateProfile, uploadAvatar } from '../services/profileService';
 import toast from 'react-hot-toast';
 
 // URLs de Checkout da Kiwify
@@ -25,6 +25,9 @@ const ProfileAndPlans: React.FC = () => {
     const [profile, setProfile] = useState<Profile | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
+    const [isProfileExpanded, setIsProfileExpanded] = useState(false); // Novo estado para expansão
+    const fileInputRef = useRef<HTMLInputElement>(null); // Referência para o input de arquivo
+    
     const [formData, setFormData] = useState({
         first_name: '',
         last_name: '',
@@ -82,12 +85,41 @@ const ProfileAndPlans: React.FC = () => {
         }
     };
     
+    const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file || !profile) return;
+
+        setIsSaving(true);
+        const toastId = toast.loading('Fazendo upload da imagem...');
+
+        try {
+            const publicUrl = await uploadAvatar(file, profile.id);
+            
+            // Atualiza o estado local do formulário e salva no banco de dados
+            const updatedFormData = { ...formData, avatar_url: publicUrl };
+            setFormData(updatedFormData);
+            
+            const updatedProfile = await updateProfile(updatedFormData);
+            setProfile(updatedProfile);
+            
+            toast.success('Foto de perfil atualizada!', { id: toastId });
+        } catch (error: any) {
+            toast.error(error.message || 'Erro ao fazer upload da imagem.', { id: toastId });
+        } finally {
+            setIsSaving(false);
+            // Limpa o valor do input para permitir o upload do mesmo arquivo novamente
+            if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+            }
+        }
+    };
+    
     const getPlanDetails = () => {
-        if (!profile) return { name: 'Trial', limit: '3 consultas', color: 'text-slate-500' };
+        if (!profile) return { name: 'Teste', limit: '3 consultas', color: 'text-slate-500' };
         
         const { plan_type, query_count, query_limit } = profile;
         
-        let name = 'Trial';
+        let name = 'Teste';
         let limit = `${query_count}/${query_limit} consultas`;
         let color = 'text-slate-500';
         
@@ -205,72 +237,100 @@ const ProfileAndPlans: React.FC = () => {
                         )}
                     </div>
                     
-                    {/* Card de Edição de Perfil */}
+                    {/* Card de Edição de Perfil (Minimizado/Expandido) */}
                     <div className="bg-white p-6 rounded-xl shadow-lg border border-slate-200">
-                        <h3 className="text-xl font-bold text-slate-800 border-b pb-3 mb-4">Meu Perfil</h3>
+                        <button 
+                            onClick={() => setIsProfileExpanded(prev => !prev)}
+                            className="flex justify-between items-center w-full border-b pb-3 mb-4"
+                        >
+                            <h3 className="text-xl font-bold text-slate-800">Meu Perfil</h3>
+                            <ChevronDown className={`w-5 h-5 text-slate-500 transition-transform duration-300 ${isProfileExpanded ? 'rotate-180' : ''}`} />
+                        </button>
                         
-                        <form onSubmit={handleSaveProfile} className="space-y-4">
-                            <div className="flex flex-col items-center mb-6">
-                                <img 
-                                    src={formData.avatar_url || `https://ui-avatars.com/api/?name=${formData.first_name}+${formData.last_name}&background=4f46e5&color=fff&bold=true`}
-                                    alt="Avatar"
-                                    className="w-24 h-24 rounded-full object-cover border-4 border-indigo-100 shadow-md"
-                                />
-                                <p className="mt-2 text-sm text-slate-500">A foto de perfil é opcional.</p>
-                            </div>
-                            
-                            <div>
-                                <label htmlFor="first_name" className="block text-sm font-medium text-slate-700">Primeiro Nome</label>
-                                <input
-                                    type="text"
-                                    id="first_name"
-                                    name="first_name"
-                                    value={formData.first_name}
-                                    onChange={handleInputChange}
-                                    className="mt-1 block w-full p-3 border border-slate-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-                                    placeholder="Seu primeiro nome"
-                                />
-                            </div>
-                            
-                            <div>
-                                <label htmlFor="last_name" className="block text-sm font-medium text-slate-700">Sobrenome</label>
-                                <input
-                                    type="text"
-                                    id="last_name"
-                                    name="last_name"
-                                    value={formData.last_name}
-                                    onChange={handleInputChange}
-                                    className="mt-1 block w-full p-3 border border-slate-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-                                    placeholder="Seu sobrenome"
-                                />
-                            </div>
-                            
-                            <div>
-                                <label htmlFor="avatar_url" className="block text-sm font-medium text-slate-700">URL da Foto de Perfil (Opcional)</label>
-                                <input
-                                    type="url"
-                                    id="avatar_url"
-                                    name="avatar_url"
-                                    value={formData.avatar_url}
-                                    onChange={handleInputChange}
-                                    className="mt-1 block w-full p-3 border border-slate-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-                                    placeholder="https://exemplo.com/sua-foto.jpg"
-                                />
-                            </div>
-                            
-                            <button
-                                type="submit"
-                                disabled={isSaving}
-                                className="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 transition duration-300 ease-in-out shadow-lg disabled:bg-indigo-400 flex items-center justify-center"
-                            >
-                                {isSaving ? (
-                                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                                ) : (
-                                    <Save className="w-5 h-5 mr-2" />
-                                )}
-                                Salvar Alterações
-                            </button>
-                        </form>
+                        {isProfileExpanded && (
+                            <form onSubmit={handleSaveProfile} className="space-y-4 pt-2">
+                                <div className="flex flex-col items-center mb-6">
+                                    <div className="relative w-24 h-24">
+                                        <img 
+                                            src={formData.avatar_url || `https://ui-avatars.com/api/?name=${formData.first_name}+${formData.last_name}&background=4f46e5&color=fff&bold=true`}
+                                            alt="Avatar"
+                                            className="w-24 h-24 rounded-full object-cover border-4 border-indigo-100 shadow-md"
+                                        />
+                                        {/* Botão de Upload */}
+                                        <button
+                                            type="button"
+                                            onClick={() => fileInputRef.current?.click()}
+                                            disabled={isSaving}
+                                            className="absolute bottom-0 right-0 bg-indigo-600 text-white p-1.5 rounded-full border-2 border-white hover:bg-indigo-700 transition disabled:bg-indigo-400"
+                                            title="Carregar Foto"
+                                        >
+                                            <Upload className="w-4 h-4" />
+                                        </button>
+                                        {/* Input de Arquivo Oculto */}
+                                        <input
+                                            type="file"
+                                            ref={fileInputRef}
+                                            onChange={handleAvatarUpload}
+                                            accept="image/*"
+                                            className="hidden"
+                                        />
+                                    </div>
+                                    <p className="mt-2 text-sm text-slate-500">A foto de perfil é opcional.</p>
+                                </div>
+                                
+                                <div>
+                                    <label htmlFor="first_name" className="block text-sm font-medium text-slate-700">Primeiro Nome</label>
+                                    <input
+                                        type="text"
+                                        id="first_name"
+                                        name="first_name"
+                                        value={formData.first_name}
+                                        onChange={handleInputChange}
+                                        className="mt-1 block w-full p-3 border border-slate-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                                        placeholder="Seu primeiro nome"
+                                    />
+                                </div>
+                                
+                                <div>
+                                    <label htmlFor="last_name" className="block text-sm font-medium text-slate-700">Sobrenome</label>
+                                    <input
+                                        type="text"
+                                        id="last_name"
+                                        name="last_name"
+                                        value={formData.last_name}
+                                        onChange={handleInputChange}
+                                        className="mt-1 block w-full p-3 border border-slate-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                                        placeholder="Seu sobrenome"
+                                    />
+                                </div>
+                                
+                                <div>
+                                    <label htmlFor="avatar_url" className="block text-sm font-medium text-slate-700">URL da Foto de Perfil (Opcional)</label>
+                                    <input
+                                        type="url"
+                                        id="avatar_url"
+                                        name="avatar_url"
+                                        value={formData.avatar_url}
+                                        onChange={handleInputChange}
+                                        className="mt-1 block w-full p-3 border border-slate-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                                        placeholder="https://exemplo.com/sua-foto.jpg"
+                                    />
+                                </div>
+                                
+                                <button
+                                    type="submit"
+                                    disabled={isSaving}
+                                    className="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 transition duration-300 ease-in-out shadow-lg disabled:bg-indigo-400 flex items-center justify-center"
+                                >
+                                    {isSaving ? (
+                                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                                    ) : (
+                                        <Save className="w-5 h-5 mr-2" />
+                                    )}
+                                    Salvar Alterações
+                                </button>
+                            </form>
+                        )}
                     </div>
                 </div>
 
