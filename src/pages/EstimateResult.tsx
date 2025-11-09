@@ -43,6 +43,25 @@ const parseDateParts = (dateString: string | undefined): DateParts => {
     return { day: '', month: '', year: '' };
 };
 
+// Função para garantir que OtherCosts e LaborDetails tenham IDs únicos
+const ensureUniqueIds = (estimate: Estimate): Estimate => {
+    const newEstimate = JSON.parse(JSON.stringify(estimate));
+    
+    // 1. OtherCosts
+    newEstimate.totals.otherCosts = (newEstimate.totals.otherCosts || []).map((cost: OtherCost) => ({
+        ...cost,
+        id: cost.id || `other-${Date.now()}-${Math.random()}`,
+    }));
+    
+    // 2. LaborDetails
+    newEstimate.totals.laborDetails = (newEstimate.totals.laborDetails || []).map((detail: LaborDetail) => ({
+        ...detail,
+        id: detail.id || `labor-${Date.now()}-${Math.random()}`,
+    }));
+    
+    return newEstimate;
+};
+
 
 // Tipo interno para gerenciar as premissas de forma estruturada
 interface StructuredPremise {
@@ -63,14 +82,14 @@ const parsePremises = (averages: string[]): StructuredPremise[] => {
             // Substitui vírgula por ponto para garantir que parseFloat funcione
             const quantityStr = match[2].replace(',', '.');
             return {
-                id: `premise-${index}-${Date.now()}`,
+                id: `premise-${index}-${Date.now()}-${Math.random()}`,
                 item: match[1].trim(),
                 quantity: parseFloat(quantityStr), 
                 unit: match[3].trim(),
             };
         }
         // Fallback para strings não parseáveis
-        return { id: `premise-${index}-${Date.now()}`, item: avg, quantity: 0, unit: '' };
+        return { id: `premise-${index}-${Date.now()}-${Math.random()}`, item: avg, quantity: 0, unit: '' };
     });
 };
 
@@ -88,8 +107,8 @@ const serializePremises = (structured: StructuredPremise[]): string[] => {
 
 
 const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstimate, onEstimateSaved }) => {
-  // Substituindo useState por useUndoRedo
-  const [estimate, estimateActions] = useUndoRedo(initialEstimate);
+  // Substituindo useState por useUndoRedo, garantindo IDs únicos no estado inicial
+  const [estimate, estimateActions] = useUndoRedo(ensureUniqueIds(initialEstimate));
   const { set: setEstimate, undo, redo, canUndo, canRedo } = estimateActions;
   
   const [margin, setMargin] = useState(40);
@@ -183,11 +202,14 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
   }
   
   // Função de mudança para LaborDetails (usada no onChange para números e onBlur para todos)
-  const handleLaborDetailChange = (index: number, field: keyof LaborDetail, value: string, addToHistory: boolean = false) => {
+  const handleLaborDetailChange = (id: string, field: keyof LaborDetail, value: string, addToHistory: boolean = false) => {
       const currentLaborDetails = estimate.totals.laborDetails || [];
       if (currentLaborDetails.length === 0) return;
 
       const newLaborDetails = JSON.parse(JSON.stringify(currentLaborDetails));
+      const index = newLaborDetails.findIndex((d: LaborDetail) => d.id === id);
+      if (index === -1) return;
+      
       const detail = newLaborDetails[index];
 
       if (field === 'role') {
@@ -208,6 +230,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
 
   const handleAddLaborDetail = () => {
       const newLaborDetails = [...(estimate.totals.laborDetails || []), {
+          id: `labor-${Date.now()}-${Math.random()}`, // ID ÚNICO
           role: 'Novo Profissional',
           count: 1,
           costPerUnit: 0,
@@ -218,11 +241,11 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
       setEstimate({...estimate, totals: newTotals });
   };
 
-  const handleRemoveLaborDetail = (index: number) => {
+  const handleRemoveLaborDetail = (id: string) => {
       const currentLaborDetails = estimate.totals.laborDetails || [];
       if (currentLaborDetails.length === 0) return;
       
-      const newLaborDetails = currentLaborDetails.filter((_, i) => i !== index);
+      const newLaborDetails = currentLaborDetails.filter(d => d.id !== id);
       const newTotals = recalculateTotals(estimate.menuItems, estimate.totals.otherCosts || [], newLaborDetails);
       // Adiciona ao histórico (padrão: true)
       setEstimate({...estimate, totals: newTotals });
@@ -251,9 +274,13 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
   };
   
   // Função de mudança para OtherCost (usada no onChange para números e onBlur para todos)
-  const handleOtherCostChange = (index: number, field: keyof OtherCost, value: string, addToHistory: boolean = false) => {
+  const handleOtherCostChange = (id: string, field: keyof OtherCost, value: string, addToHistory: boolean = false) => {
       const currentOtherCosts = estimate.totals.otherCosts || [];
       const newOtherCosts = JSON.parse(JSON.stringify(currentOtherCosts));
+      
+      const index = newOtherCosts.findIndex((c: OtherCost) => c.id === id);
+      if (index === -1) return;
+      
       const item = newOtherCosts[index];
       
       if (field === 'cost') {
@@ -269,16 +296,19 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
   
   const handleAddOtherCost = () => {
       const newOtherCosts = JSON.parse(JSON.stringify(estimate.totals.otherCosts || []));
-      newOtherCosts.push({ name: 'Novo Custo', cost: 0 });
+      newOtherCosts.push({ 
+          id: `other-${Date.now()}-${Math.random()}`, // ID ÚNICO
+          name: 'Novo Custo', 
+          cost: 0 
+      });
       const newTotals = recalculateTotals(estimate.menuItems, newOtherCosts);
       // Adiciona ao histórico (padrão: true)
       setEstimate({...estimate, totals: newTotals });
   };
   
-  const handleRemoveOtherCost = (index: number) => {
+  const handleRemoveOtherCost = (id: string) => {
       const currentOtherCosts = estimate.totals.otherCosts || [];
-      const newOtherCosts = JSON.parse(JSON.stringify(currentOtherCosts));
-      newOtherCosts.splice(index, 1);
+      const newOtherCosts = currentOtherCosts.filter(c => c.id !== id);
       const newTotals = recalculateTotals(estimate.menuItems, newOtherCosts);
       // Adiciona ao histórico (padrão: true)
       setEstimate({...estimate, totals: newTotals });
@@ -392,7 +422,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
 
   const handleAddStructuredPremise = () => {
       const newPremise: StructuredPremise = {
-          id: `premise-${Date.now()}`,
+          id: `premise-${Date.now()}-${Math.random()}`,
           item: 'Novo Item',
           quantity: 100,
           unit: 'g',
@@ -678,14 +708,14 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
             {/* Conteúdo da Mão de Obra. Garante que laborDetails é um array vazio se for undefined/null */}
             {(isLaborExpanded || isExporting) && (estimate.totals.laborDetails || []).length > 0 && (
                 <div className={`pl-4 mt-2 space-y-2 border-l-2 border-slate-200 ${isExporting ? 'bg-white' : ''}`}>
-                  {(estimate.totals.laborDetails || []).map((detail, index) => (
-                      <div key={index} className="flex items-center justify-between group py-1">
+                  {(estimate.totals.laborDetails || []).map((detail) => (
+                      <div key={detail.id} className="flex items-center justify-between group py-1">
                           {/* Role Input */}
                           <input 
                               type="text"
                               value={detail.role} // Usando value
-                              onChange={(e) => handleLaborDetailChange(index, 'role', e.target.value, false)} // Atualiza o estado sem histórico
-                              onBlur={(e) => handleLaborDetailChange(index, 'role', e.target.value, true)} // Salva no histórico ao perder o foco
+                              onChange={(e) => handleLaborDetailChange(detail.id, 'role', e.target.value, false)} // Atualiza o estado sem histórico
+                              onBlur={(e) => handleLaborDetailChange(detail.id, 'role', e.target.value, true)} // Salva no histórico ao perder o foco
                               placeholder="Função"
                               className={`text-slate-700 bg-transparent p-1 rounded border ${isExporting ? 'border-transparent' : 'border-slate-300 focus:border-indigo-500 focus:ring-indigo-500'} w-2/5 text-sm`}
                               readOnly={isExporting}
@@ -696,8 +726,8 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                               <input 
                                   type="number"
                                   value={detail.count}
-                                  onChange={(e) => handleLaborDetailChange(index, 'count', e.target.value, false)}
-                                  onBlur={(e) => handleLaborDetailChange(index, 'count', e.target.value, true)} 
+                                  onChange={(e) => handleLaborDetailChange(detail.id, 'count', e.target.value, false)}
+                                  onBlur={(e) => handleLaborDetailChange(detail.id, 'count', e.target.value, true)} 
                                   className={`w-12 bg-transparent p-1 rounded border ${isExporting ? 'border-transparent' : 'border-slate-300 focus:border-indigo-500 focus:ring-indigo-500'} text-sm text-right`}
                                   readOnly={isExporting}
                               />
@@ -709,8 +739,8 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                                   type="number"
                                   step="0.01"
                                   value={detail.costPerUnit}
-                                  onChange={(e) => handleLaborDetailChange(index, 'costPerUnit', e.target.value, false)}
-                                  onBlur={(e) => handleLaborDetailChange(index, 'costPerUnit', e.target.value, true)} 
+                                  onChange={(e) => handleLaborDetailChange(detail.id, 'costPerUnit', e.target.value, false)}
+                                  onBlur={(e) => handleLaborDetailChange(detail.id, 'costPerUnit', e.target.value, true)} 
                                   className={`w-20 bg-transparent p-1 rounded border ${isExporting ? 'border-transparent' : 'border-slate-300 focus:border-indigo-500 focus:ring-indigo-500'} text-sm text-right`}
                                   readOnly={isExporting}
                               />
@@ -721,7 +751,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                           
                           {/* Remove Button (Hidden during export) */}
                           {!isExporting && (
-                              <button onClick={() => handleRemoveLaborDetail(index)} className="ml-2 text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded">
+                              <button onClick={() => handleRemoveLaborDetail(detail.id)} className="ml-2 text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded">
                                   <Trash2 className="w-3 h-3" />
                               </button>
                           )}
@@ -738,14 +768,14 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
             <div className="pt-2 border-t border-slate-100">
               <h4 className="text-xs font-semibold text-slate-600 mb-2">Outros Custos</h4>
               {/* Garante que otherCosts é um array vazio se for undefined/null */}
-              {(estimate.totals.otherCosts || []).map((cost, index) => (
-                  <div key={index} className="flex justify-between items-center group py-1">
+              {(estimate.totals.otherCosts || []).map((cost) => (
+                  <div key={cost.id} className="flex justify-between items-center group py-1">
                       {/* Name Input */}
                       <input 
                           type="text"
                           value={cost.name} // Usando value
-                          onChange={(e) => handleOtherCostChange(index, 'name', e.target.value, false)} // Atualiza o estado sem histórico
-                          onBlur={(e) => handleOtherCostChange(index, 'name', e.target.value, true)} // Salva no histórico ao perder o foco
+                          onChange={(e) => handleOtherCostChange(cost.id, 'name', e.target.value, false)} // Atualiza o estado sem histórico
+                          onBlur={(e) => handleOtherCostChange(cost.id, 'name', e.target.value, true)} // Salva no histórico ao perder o foco
                           placeholder="Nome do Custo"
                           className={`text-slate-500 bg-transparent p-1 rounded border ${isExporting ? 'border-transparent' : 'border-slate-300 focus:border-indigo-500 focus:ring-indigo-500'} w-3/5 text-sm`}
                           readOnly={isExporting}
@@ -757,13 +787,13 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                               type="number"
                               step="0.01"
                               value={cost.cost}
-                              onChange={(e) => handleOtherCostChange(index, 'cost', e.target.value, false)}
-                              onBlur={(e) => handleOtherCostChange(index, 'cost', e.target.value, true)}
+                              onChange={(e) => handleOtherCostChange(cost.id, 'cost', e.target.value, false)}
+                              onBlur={(e) => handleOtherCostChange(cost.id, 'cost', e.target.value, true)}
                               className={`font-medium bg-transparent p-1 rounded border ${isExporting ? 'border-transparent' : 'border-slate-300 focus:border-indigo-500 focus:ring-indigo-500'} w-24 text-right text-sm`}
                               readOnly={isExporting}
                           />
                           {!isExporting && (
-                              <button onClick={() => handleRemoveOtherCost(index)} className="ml-2 text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded">
+                              <button onClick={() => handleRemoveOtherCost(cost.id)} className="ml-2 text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded">
                                   <Trash2 className="w-3 h-3" />
                               </button>
                           )}
@@ -976,7 +1006,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                                         onChange={(e) => handleStructuredPremiseChange(p.id, 'item', e.target.value, false)}
                                         onBlur={(e) => handleStructuredPremiseChange(p.id, 'item', e.target.value, true)} // Salva no histórico
                                         placeholder="Item (ex: Carne)"
-                                        className={`flex-1 min-w-[100px] p-2 rounded border text-sm text-slate-700 ${isExporting ? 'bg-transparent border-transparent' : 'bg-white border-indigo-300 focus:border-indigo-500'}`}
+                                        className={`flex-1 min-w-[100px] p-2 rounded border text-sm text-slate-700 ${isExporting ? 'border-transparent' : 'bg-white border-indigo-300 focus:border-indigo-500'}`}
                                         readOnly={isExporting}
                                     />
                                 ) : (
@@ -991,7 +1021,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                                             onChange={(e) => handleStructuredPremiseChange(p.id, 'quantity', e.target.value, false)}
                                             onBlur={(e) => handleStructuredPremiseChange(p.id, 'quantity', e.target.value, true)} // Salva no histórico
                                             placeholder="Qtde"
-                                            className={`w-16 p-2 rounded border text-sm text-slate-700 text-right ${isExporting ? 'bg-transparent border-transparent' : 'bg-white border-indigo-300 focus:border-indigo-500'}`}
+                                            className={`w-16 p-2 rounded border text-sm text-slate-700 text-right ${isExporting ? 'border-transparent' : 'bg-white border-indigo-300 focus:border-indigo-500'}`}
                                             readOnly={isExporting}
                                         />
                                     ) : (

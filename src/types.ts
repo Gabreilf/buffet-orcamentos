@@ -21,11 +21,13 @@ export interface MenuItemDetail {
 }
 
 export interface OtherCost {
+  id: string; // Adicionado para chaves estáveis
   name: string;
   cost: number;
 }
 
 export interface LaborDetail {
+  id: string; // Adicionado para chaves estáveis
   role: string;
   count: number;
   costPerUnit: number;
