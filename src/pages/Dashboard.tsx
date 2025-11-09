@@ -222,16 +222,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
             <h2 className="text-3xl font-bold text-slate-800 mb-4 sm:mb-0">Painel de Controle</h2>
             <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3 w-full sm:w-auto">
-                {/* Botão de Suporte WhatsApp */}
-                <a
-                    href="https://wa.me/5521973741689"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="bg-green-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-600 transition duration-300 ease-in-out shadow-lg flex items-center justify-center"
-                    title="Suporte via WhatsApp"
-                >
-                    <i className="fab fa-whatsapp mr-2"></i> Suporte
-                </a>
+                {/* Botão de Suporte WhatsApp REMOVIDO daqui */}
                 
                 <button
                 onClick={onCreateNew}
