@@ -2,6 +2,15 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Estimate, CustomCost } from '../types';
 import { updateEstimate } from '../services/estimateService';
 import toast from 'react-hot-toast';
+import PlanStatusBanner from '../components/PlanStatusBanner'; // Importando o novo componente
+
+interface Profile {
+    plan_type: string;
+    plan: string;
+    query_count: number;
+    query_limit: number | null;
+    is_active: boolean;
+}
 
 interface DashboardProps {
   estimates: Estimate[];
@@ -10,6 +19,8 @@ interface DashboardProps {
   onView: (estimate: Estimate) => void;
   onCustomCostsChange: (costs: CustomCost[]) => void;
   onEstimateUpdated: (updatedEstimate: Estimate) => void; // Novo prop para atualizar a lista no App.tsx
+  userProfile: Profile | null; // Novo prop para o perfil do usuário
+  onViewPlans: () => void; // Novo prop para navegar para a página de planos
 }
 
 const formatCurrency = (value: number) => {
@@ -74,6 +85,8 @@ const Dashboard: React.FC<DashboardProps> = ({
   onView,
   onCustomCostsChange,
   onEstimateUpdated,
+  userProfile, // Recebendo o perfil
+  onViewPlans, // Recebendo o handler de navegação
 }) => {
     const [editableCustomCosts, setEditableCustomCosts] = useState<CustomCost[]>(JSON.parse(JSON.stringify(customCosts)));
     // Estado local para gerenciar as partes da data de cada orçamento
@@ -202,6 +215,10 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   return (
     <div className="container mx-auto">
+        {userProfile && userProfile.is_active && (
+            <PlanStatusBanner profile={userProfile} onUpgradeClick={onViewPlans} />
+        )}
+        
         <div className="flex justify-between items-center mb-6">
             <h2 className="text-3xl font-bold text-slate-800">Painel de Controle</h2>
             <button
