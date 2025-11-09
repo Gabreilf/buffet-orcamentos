@@ -39,7 +39,7 @@ const fetchUserProfile = async (user: User): Promise<UserWithProfile> => {
     
     // Mapeia plan_type para um nome de plano amigável
     const planNameMap: Record<string, string> = {
-        'trial': 'Trial',
+        'trial': 'Teste', // Alterado de 'Trial' para 'Teste'
         'start': 'Start',
         'pro': 'Pro',
         'basic': 'Básico',
@@ -47,7 +47,7 @@ const fetchUserProfile = async (user: User): Promise<UserWithProfile> => {
     
     const profileData = {
         ...data,
-        plan: planNameMap[data.plan_type] || 'Trial', // Adiciona o campo 'plan' mapeado
+        plan: planNameMap[data.plan_type] || 'Teste', // Adiciona o campo 'plan' mapeado
     };
     
     return { ...user, profile: profileData };

@@ -31,10 +31,11 @@ const PlanStatusBanner: React.FC<PlanStatusBannerProps> = ({ profile, onUpgradeC
         textColor = 'text-yellow-800';
         showButton = true;
         
-        if (remaining <= 0) {
+        if (query_limit !== null && query_count >= query_limit) {
             message = `Seu Plano ${plan} expirou. Faça upgrade para continuar gerando orçamentos.`;
             bgColor = 'bg-red-50';
             textColor = 'text-red-800';
+            showButton = true; // Mostrar botão de upgrade quando expirado
         }
     } else if (plan_type === 'start') {
         message = `Você está no Plano ${plan}. Limite de 19 consultas/mês.`;
@@ -47,7 +48,7 @@ const PlanStatusBanner: React.FC<PlanStatusBannerProps> = ({ profile, onUpgradeC
         buttonText = 'Gerenciar Assinatura';
         bgColor = 'bg-green-50';
         textColor = 'text-green-800';
-        showButton = false; // Não precisa de upgrade, mas pode ter um botão de gerenciamento se necessário
+        showButton = true; // Mostrar botão de gerenciamento
     } else {
         // Fallback
         message = `Seu plano atual é: ${plan}.`;
@@ -64,19 +65,12 @@ const PlanStatusBanner: React.FC<PlanStatusBannerProps> = ({ profile, onUpgradeC
                 <button
                     onClick={onUpgradeClick}
                     className={`flex items-center px-4 py-2 text-sm font-bold rounded-lg transition duration-300 ease-in-out whitespace-nowrap 
-                        ${plan_type === 'trial' ? 'bg-yellow-600 hover:bg-yellow-700 text-white' : 'bg-indigo-600 hover:bg-indigo-700 text-white'}`}
+                        ${plan_type === 'trial' && query_limit !== null && query_count >= query_limit 
+                            ? 'bg-red-600 hover:bg-red-700 text-white' // Vermelho se expirado
+                            : 'bg-indigo-600 hover:bg-indigo-700 text-white' // Padrão (amarelo/indigo)
+                        }`}
                 >
                     {buttonText}
-                    <ArrowRight className="w-4 h-4 ml-2" />
-                </button>
-            )}
-            
-            {plan_type === 'pro' && (
-                 <button
-                    onClick={onUpgradeClick}
-                    className={`flex items-center px-4 py-2 text-sm font-bold rounded-lg transition duration-300 ease-in-out whitespace-nowrap bg-green-600 hover:bg-green-700 text-white`}
-                >
-                    Gerenciar Plano
                     <ArrowRight className="w-4 h-4 ml-2" />
                 </button>
             )}

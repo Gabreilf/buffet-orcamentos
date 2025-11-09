@@ -174,7 +174,12 @@ const App: React.FC = () => {
 
     switch (currentPage) {
       case 'new_estimate':
-        return <NewEstimate onEstimateGenerated={handleEstimateGenerated} customCosts={customCosts} />;
+        return <NewEstimate 
+            onEstimateGenerated={handleEstimateGenerated} 
+            customCosts={customCosts} 
+            userProfile={user?.profile} // Passando o perfil
+            onViewPlans={handleViewPlans} // Passando o handler de navegação
+        />;
       case 'estimate_result':
         // Usamos a key para forçar a remontagem do componente EstimateResult sempre que o orçamento ativo mudar.
         return activeEstimate ? <EstimateResult key={activeEstimate.estimateId} estimate={activeEstimate} onEstimateSaved={loadEstimates} /> : <Dashboard estimates={estimates} onCreateNew={handleCreateNewEstimate} onView={handleViewEstimate} customCosts={customCosts} onCustomCostsChange={setCustomCosts} onEstimateUpdated={handleEstimateUpdated} userProfile={user?.profile} onViewPlans={handleViewPlans} />;
@@ -186,7 +191,7 @@ const App: React.FC = () => {
     }
   };
 
-  const currentPlanName = user?.profile?.plan || 'Trial';
+  const currentPlanName = user?.profile?.plan || 'Teste';
 
   return (
     <div className="min-h-screen bg-slate-100 font-sans">
