@@ -691,7 +691,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
     return { ...recalculated, suggestedPrice };
   }, [estimate.menuItems, estimate.totals.otherCosts, estimate.totals.laborDetails, margin, taxRate, recalculateTotals]);
   
-  const kitchenStaffCost = getKitchenStaffCost(estimate.totals.laborDetails);
+  const kitchenStaffCost = getKitchenStaffCost(updatedTotals.laborDetails);
 
   // Componente auxiliar para renderizar o Resumo Financeiro (usado tanto na tela quanto no PDF)
   const FinancialSummary = () => (
@@ -742,7 +742,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                 <span className="font-medium flex items-center">
                   {formatCurrency(updatedTotals.labor)}
                   {/* Verifica se laborDetails existe antes de verificar o length */}
-                  {(updatedTotals.laborDetails && updatedTotals.laborDetails.length > 0 && !isExporting) && (
+                  {((updatedTotals.laborDetails || []).length > 0 && !isExporting) && (
                     <ChevronDown className={`w-4 h-4 ml-2 text-slate-400 transition-transform duration-200 ${isLaborExpanded ? 'rotate-180' : ''}`} />
                   )}
                 </span>
