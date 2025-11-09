@@ -697,13 +697,29 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
 
 
   const updatedTotals = useMemo(() => {
+    // Garante que estimate.totals existe e tem as propriedades necessárias para o cálculo
+    const safeTotals = estimate.totals || { otherCosts: [], laborDetails: [] };
+    
     // Recalcula os totais usando a taxa de imposto atual
-    const recalculated = recalculateTotals(estimate.menuItems, estimate.totals.otherCosts || [], estimate.totals.laborDetails || [], taxRate);
+    const recalculated = recalculateTotals(
+        estimate.menuItems, 
+        safeTotals.otherCosts || [], 
+        safeTotals.laborDetails || [], 
+        taxRate
+    );
     
     const totalCost = recalculated.totalCost;
     const suggestedPrice = totalCost * (1 + margin / 100);
     return { ...recalculated, suggestedPrice };
-  }, [estimate.menuItems, estimate.totals.otherCosts, estimate.totals.laborDetails, margin, taxRate, recalculateTotals]);
+  }, [
+      estimate.menuItems, 
+      // Usando fallback no array de dependências para evitar o erro de leitura de undefined
+      estimate.totals?.otherCosts || [], 
+      estimate.totals?.laborDetails || [], 
+      margin, 
+      taxRate, 
+      recalculateTotals
+  ]);
   
   const kitchenStaffCost = getKitchenStaffCost(updatedTotals.laborDetails);
 
