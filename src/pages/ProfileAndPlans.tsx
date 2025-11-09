@@ -235,6 +235,17 @@ const ProfileAndPlans: React.FC = () => {
                                 <p className="text-sm font-semibold text-red-700">Conta Inativa: Verifique seu pagamento.</p>
                             </div>
                         )}
+                        
+                        {/* Botão de Suporte WhatsApp */}
+                        <a
+                            href="https://wa.me/5521973741689"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="mt-4 w-full bg-green-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-600 transition duration-300 ease-in-out shadow-lg flex items-center justify-center"
+                            title="Suporte via WhatsApp"
+                        >
+                            <i className="fab fa-whatsapp mr-2"></i> Falar com Suporte
+                        </a>
                     </div>
                     
                     {/* Card de Edição de Perfil (Minimizado/Expandido) */}

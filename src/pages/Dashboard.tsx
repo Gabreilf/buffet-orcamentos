@@ -221,12 +221,25 @@ const Dashboard: React.FC<DashboardProps> = ({
         
         <div className="flex justify-between items-center mb-6">
             <h2 className="text-3xl font-bold text-slate-800">Painel de Controle</h2>
-            <button
-            onClick={onCreateNew}
-            className="bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 transition duration-300 ease-in-out shadow-lg flex items-center"
-            >
-                <i className="fas fa-plus mr-2"></i> Criar Novo Orçamento
-            </button>
+            <div className="flex space-x-3">
+                {/* Botão de Suporte WhatsApp */}
+                <a
+                    href="https://wa.me/5521973741689"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="bg-green-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-600 transition duration-300 ease-in-out shadow-lg flex items-center"
+                    title="Suporte via WhatsApp"
+                >
+                    <i className="fab fa-whatsapp mr-2"></i> Suporte
+                </a>
+                
+                <button
+                onClick={onCreateNew}
+                className="bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 transition duration-300 ease-in-out shadow-lg flex items-center"
+                >
+                    <i className="fas fa-plus mr-2"></i> Criar Novo Orçamento
+                </button>
+            </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
