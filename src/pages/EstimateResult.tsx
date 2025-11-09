@@ -182,8 +182,8 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
       setEstimate({...estimate, menuItems: newMenuItems, totals: newTotals }, false);
   }
   
-  const handleLaborDetailChange = (index: number, field: keyof LaborDetail, value: string) => {
-      // Garante que laborDetails existe
+  // Função de mudança para LaborDetails (usada no onChange para números e onBlur para todos)
+  const handleLaborDetailChange = (index: number, field: keyof LaborDetail, value: string, addToHistory: boolean = false) => {
       const currentLaborDetails = estimate.totals.laborDetails || [];
       if (currentLaborDetails.length === 0) return;
 
@@ -201,8 +201,9 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
       detail.totalCost = detail.count * detail.costPerUnit;
 
       const newTotals = recalculateTotals(estimate.menuItems, estimate.totals.otherCosts || [], newLaborDetails);
-      // Atualiza o estado sem adicionar ao histórico (addToHistory: false)
-      setEstimate({...estimate, totals: newTotals }, false);
+      
+      // Atualiza o estado
+      setEstimate({...estimate, totals: newTotals }, addToHistory);
   };
 
   const handleAddLaborDetail = () => {
@@ -249,7 +250,8 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
       setEstimate({...estimate, menuItems: newMenuItems, totals: newTotals });
   };
   
-  const handleOtherCostChange = (index: number, field: keyof OtherCost, value: string) => {
+  // Função de mudança para OtherCost (usada no onChange para números e onBlur para todos)
+  const handleOtherCostChange = (index: number, field: keyof OtherCost, value: string, addToHistory: boolean = false) => {
       const currentOtherCosts = estimate.totals.otherCosts || [];
       const newOtherCosts = JSON.parse(JSON.stringify(currentOtherCosts));
       const item = newOtherCosts[index];
@@ -261,8 +263,8 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
       }
       
       const newTotals = recalculateTotals(estimate.menuItems, newOtherCosts);
-      // Atualiza o estado sem adicionar ao histórico (addToHistory: false)
-      setEstimate({...estimate, totals: newTotals }, false);
+      // Atualiza o estado
+      setEstimate({...estimate, totals: newTotals }, addToHistory);
   };
   
   const handleAddOtherCost = () => {
@@ -321,7 +323,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
   };
   
   // --- Handlers for Structured Consumption Averages ---
-  const handleStructuredPremiseChange = (id: string, field: keyof Omit<StructuredPremise, 'id'>, value: string | number) => {
+  const handleStructuredPremiseChange = (id: string, field: keyof Omit<StructuredPremise, 'id'>, value: string | number, addToHistory: boolean = false) => {
       let newAverages: StructuredPremise[] = [];
       
       // 1. Atualiza o estado local estruturado das premissas
@@ -377,8 +379,8 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
           totals: newTotals,
       };
       
-      // 5. Atualiza o estado principal do Estimate (sem adicionar ao histórico)
-      setEstimate(newEstimate, false);
+      // 5. Atualiza o estado principal do Estimate
+      setEstimate(newEstimate, addToHistory);
   };
 
   const handleSavePremises = () => {
@@ -552,7 +554,7 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
               detail.count.toString(),
               'Diária/Unidade',
               formatNumber(detail.costPerUnit),
-              formatNumber(detail.totalCost),
+              formatNumber(detail.costPerUnit * detail.count), // Recalculando para garantir
               'Mão de Obra',
               DATE_CREATED
           ]);
@@ -678,39 +680,37 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                 <div className={`pl-4 mt-2 space-y-2 border-l-2 border-slate-200 ${isExporting ? 'bg-white' : ''}`}>
                   {(estimate.totals.laborDetails || []).map((detail, index) => (
                       <div key={index} className="flex items-center justify-between group py-1">
-                          {/* Role Input (Read-only during export) */}
+                          {/* Role Input (CORRIGIDO: Usando onBlur para salvar no histórico) */}
                           <input 
                               type="text"
-                              value={detail.role}
-                              onChange={(e) => handleLaborDetailChange(index, 'role', e.target.value)}
-                              onBlur={() => setEstimate(estimate, true)} // Adiciona ao histórico ao perder o foco
+                              defaultValue={detail.role} // Usar defaultValue para evitar re-renderização no onChange
+                              onChange={(e) => handleLaborDetailChange(index, 'role', e.target.value, false)} // Atualiza o estado sem histórico
+                              onBlur={(e) => handleLaborDetailChange(index, 'role', e.target.value, true)} // Salva no histórico ao perder o foco
                               placeholder="Função"
                               className={`text-slate-700 bg-transparent p-1 rounded border ${isExporting ? 'border-transparent' : 'border-slate-300 focus:border-indigo-500 focus:ring-indigo-500'} w-2/5 text-sm`}
                               readOnly={isExporting}
                           />
                           
                           <div className="flex items-center space-x-1">
-                              {/* Count Input (Read-only during export) */}
+                              {/* Count Input (CORRIGIDO: Usando onBlur para salvar no histórico) */}
                               <input 
                                   type="number"
                                   value={detail.count}
-                                  onChange={(e) => handleLaborDetailChange(index, 'count', e.target.value)}
-                              // CORREÇÃO: Adiciona onBlur para salvar no histórico
-                              onBlur={() => setEstimate(estimate, true)} 
+                                  onChange={(e) => handleLaborDetailChange(index, 'count', e.target.value, false)}
+                                  onBlur={(e) => handleLaborDetailChange(index, 'count', e.target.value, true)} 
                                   className={`w-12 bg-transparent p-1 rounded border ${isExporting ? 'border-transparent' : 'border-slate-300 focus:border-indigo-500 focus:ring-indigo-500'} text-sm text-right`}
                                   readOnly={isExporting}
                               />
                               <span className="text-slate-500">x</span>
                               
-                              {/* Cost Per Unit Input (Read-only during export) */}
+                              {/* Cost Per Unit Input (CORRIGIDO: Usando onBlur para salvar no histórico) */}
                               <span className="text-slate-500">R$</span>
                               <input 
                                   type="number"
                                   step="0.01"
                                   value={detail.costPerUnit}
-                                  onChange={(e) => handleLaborDetailChange(index, 'costPerUnit', e.target.value)}
-                              // CORREÇÃO: Adiciona onBlur para salvar no histórico
-                              onBlur={() => setEstimate(estimate, true)} 
+                                  onChange={(e) => handleLaborDetailChange(index, 'costPerUnit', e.target.value, false)}
+                                  onBlur={(e) => handleLaborDetailChange(index, 'costPerUnit', e.target.value, true)} 
                                   className={`w-20 bg-transparent p-1 rounded border ${isExporting ? 'border-transparent' : 'border-slate-300 focus:border-indigo-500 focus:ring-indigo-500'} text-sm text-right`}
                                   readOnly={isExporting}
                               />
@@ -740,23 +740,25 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
               {/* Garante que otherCosts é um array vazio se for undefined/null */}
               {(estimate.totals.otherCosts || []).map((cost, index) => (
                   <div key={index} className="flex justify-between items-center group py-1">
+                      {/* Name Input (CORRIGIDO: Usando onBlur para salvar no histórico) */}
                       <input 
                           type="text"
-                          value={cost.name}
-                          onChange={(e) => handleOtherCostChange(index, 'name', e.target.value)}
-                          onBlur={() => setEstimate(estimate, true)} // Adiciona ao histórico ao perder o foco
+                          defaultValue={cost.name} // Usar defaultValue para evitar re-renderização no onChange
+                          onChange={(e) => handleOtherCostChange(index, 'name', e.target.value, false)} // Atualiza o estado sem histórico
+                          onBlur={(e) => handleOtherCostChange(index, 'name', e.target.value, true)} // Salva no histórico ao perder o foco
                           placeholder="Nome do Custo"
                           className={`text-slate-500 bg-transparent p-1 rounded border ${isExporting ? 'border-transparent' : 'border-slate-300 focus:border-indigo-500 focus:ring-indigo-500'} w-3/5 text-sm`}
                           readOnly={isExporting}
                       />
                       <div className="flex items-center">
                           <span className="text-slate-500 mr-1">R$</span>
+                          {/* Cost Input (CORRIGIDO: Usando onBlur para salvar no histórico) */}
                           <input 
                               type="number"
                               step="0.01"
                               value={cost.cost}
-                              onChange={(e) => handleOtherCostChange(index, 'cost', e.target.value)}
-                              onBlur={() => setEstimate(estimate, true)} // Adiciona ao histórico ao perder o foco
+                              onChange={(e) => handleOtherCostChange(index, 'cost', e.target.value, false)}
+                              onBlur={(e) => handleOtherCostChange(index, 'cost', e.target.value, true)}
                               className={`font-medium bg-transparent p-1 rounded border ${isExporting ? 'border-transparent' : 'border-slate-300 focus:border-indigo-500 focus:ring-indigo-500'} w-24 text-right text-sm`}
                               readOnly={isExporting}
                           />
@@ -970,9 +972,9 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                                 {(isPremiseEditing || isExporting) ? (
                                     <input
                                         type="text"
-                                        value={p.item}
-                                        onChange={(e) => handleStructuredPremiseChange(p.id, 'item', e.target.value)}
-                                        onBlur={() => setEstimate(estimate, true)} // Adiciona ao histórico ao perder o foco
+                                        defaultValue={p.item} // Usando defaultValue
+                                        onChange={(e) => handleStructuredPremiseChange(p.id, 'item', e.target.value, false)}
+                                        onBlur={(e) => handleStructuredPremiseChange(p.id, 'item', e.target.value, true)} // Salva no histórico
                                         placeholder="Item (ex: Carne)"
                                         className={`flex-1 min-w-[100px] p-2 rounded border text-sm text-slate-700 ${isExporting ? 'bg-transparent border-transparent' : 'bg-white border-indigo-300 focus:border-indigo-500'}`}
                                         readOnly={isExporting}
@@ -986,8 +988,8 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                                         <input
                                             type="number"
                                             value={p.quantity}
-                                            onChange={(e) => handleStructuredPremiseChange(p.id, 'quantity', e.target.value)}
-                                            onBlur={() => setEstimate(estimate, true)} // Adiciona ao histórico ao perder o foco
+                                            onChange={(e) => handleStructuredPremiseChange(p.id, 'quantity', e.target.value, false)}
+                                            onBlur={(e) => handleStructuredPremiseChange(p.id, 'quantity', e.target.value, true)} // Salva no histórico
                                             placeholder="Qtde"
                                             className={`w-16 p-2 rounded border text-sm text-slate-700 text-right ${isExporting ? 'bg-transparent border-transparent' : 'bg-white border-indigo-300 focus:border-indigo-500'}`}
                                             readOnly={isExporting}
@@ -1002,8 +1004,8 @@ const EstimateResult: React.FC<EstimateResultProps> = ({ estimate: initialEstima
                                     {(isPremiseEditing || isExporting) ? (
                                         <select
                                             value={p.unit}
-                                            onChange={(e) => handleStructuredPremiseChange(p.id, 'unit', e.target.value)}
-                                            onBlur={() => setEstimate(estimate, true)} // Adiciona ao histórico ao perder o foco
+                                            onChange={(e) => handleStructuredPremiseChange(p.id, 'unit', e.target.value, false)}
+                                            onBlur={(e) => handleStructuredPremiseChange(p.id, 'unit', e.target.value, true)} // Salva no histórico
                                             className={`w-16 p-2 rounded border text-sm text-slate-700 ${isExporting ? 'bg-transparent border-transparent appearance-none' : 'bg-white border-indigo-300 focus:border-indigo-500'}`}
                                             disabled={isExporting}
                                         >
